@@ -104,8 +104,8 @@ func SetClient(c context.Context, persistenceClient Client) (context.Context, er
 //ContextFunc is a functions with context olny parameter
 type ContextFunc func(context.Context) error
 
-//Execute preapres a dbClient and set it inside context to call the provided function
-func Execute(ctxFunc ContextFunc) error {
+//ExecuteContext preapres a Client and set it inside context to call the provided function
+func ExecuteContext(ctxFunc ContextFunc) error {
 	var err error
 	client, err := pool.Get()
 	defer client.Close()
@@ -119,4 +119,18 @@ func Execute(ctxFunc ContextFunc) error {
 		return err
 	}
 	return ctxFunc(c)
+}
+
+//ClientFunc is a functions with context olny parameter
+type ClientFunc func(Client) error
+
+//Execute gets a Client from the ClientPool and calls the provided function with the Client instance
+func Execute(cliFunc ClientFunc) error {
+	var err error
+	c, err := pool.Get()
+	defer c.Close()
+	if err != nil {
+		return err
+	}
+	return cliFunc(c)
 }
