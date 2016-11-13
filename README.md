@@ -1,2 +1,2 @@
 # persistence
-A interface for Cassandra, MongoDB and MySQL
+An interface for Cassandra, MongoDB and MySQL
