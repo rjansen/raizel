@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gocql/gocql"
 )
 
 var (
+	persistenceClientKey = 40
+	ErrInvalidState      = errors.New("The persistence current state is invalid. Setup never called")
 	ErrInvalidClientPool = errors.New("The provided ClientPool is invalid")
 	ErrInvalidContext    = errors.New("The provided Context is invalid")
-	persistenceClientKey = 40
+	ErrInvalidConfig     = errors.New("The provided Configuration is invalid")
 	pool                 ClientPool
 )
 
@@ -28,15 +29,22 @@ type Fetchable interface {
 	Scan(dest ...interface{}) error
 }
 
-//Iterable supply the gocql.Query.Iter interface for a struct
+//Iter is an interface to read data sets from cassandra
+type Iter interface {
+	Close() error
+	NumRows() int
+	Scan(dest ...interface{}) bool
+}
+
+//Iterable supply the Iter interface for a struct
 type Iterable interface {
-	Iter() *gocql.Iter
+	Iter() Iter
 }
 
 //Reader provides the interface for persistence read actions
 type Reader interface {
 	QueryOne(query string, fetchFunc func(Fetchable) error, params ...interface{}) error
-	Query(query string, iterFunc func(Iterable) error, params ...interface{}) error
+	// Query(query string, iterFunc func(Iterable) error, params ...interface{}) error
 	Close() error
 }
 
@@ -48,6 +56,7 @@ type Executor interface {
 //ClientPool is a contrant for a persistence Client pool
 type ClientPool interface {
 	Get() (Client, error)
+	Close() error
 }
 
 //Client adds full persistence supports
@@ -60,7 +69,7 @@ type Client interface {
 type Readable interface {
 	Reader
 	Fetch(fetchable Fetchable) error
-	Iter(iterable Iterable) error
+	// Iter(iterable Iterable) error
 	Read() error
 	//ReadExample() ([]Readable, error)
 }
@@ -73,12 +82,21 @@ type Writable interface {
 	Delete() error
 }
 
+//Setup initializes the persistence package
 func Setup(p ClientPool) error {
 	if p == nil {
 		return ErrInvalidClientPool
 	}
 	pool = p
 	return nil
+}
+
+//GetPool returns the pool instance
+func GetPool() (ClientPool, error) {
+	if pool == nil {
+		return nil, ErrInvalidState
+	}
+	return pool, nil
 }
 
 //GetClient reads a dbClient from a context
@@ -93,10 +111,14 @@ func GetClient(c context.Context) (Client, error) {
 	return client, nil
 }
 
-//SetClient preapres and set a dbClient into context
-func SetClient(c context.Context, persistenceClient Client) (context.Context, error) {
+//SetClient preapres and set a persistence Client into context
+func SetClient(c context.Context) (context.Context, error) {
 	if c == nil {
 		return nil, ErrInvalidContext
+	}
+	persistenceClient, err := pool.Get()
+	if err != nil {
+		return nil, err
 	}
 	return context.WithValue(c, persistenceClientKey, persistenceClient), nil
 }
@@ -106,19 +128,13 @@ type ContextFunc func(context.Context) error
 
 //ExecuteContext preapres a Client and set it inside context to call the provided function
 func ExecuteContext(ctxFunc ContextFunc) error {
-	var err error
-	client, err := pool.Get()
-	defer client.Close()
-	if err != nil {
-		return err
-	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	c, err := SetClient(ctx, client)
+	ctx, err := SetClient(ctx)
 	if err != nil {
 		return err
 	}
-	return ctxFunc(c)
+	return ctxFunc(ctx)
 }
 
 //ClientFunc is a functions with context olny parameter
@@ -126,11 +142,10 @@ type ClientFunc func(Client) error
 
 //Execute gets a Client from the ClientPool and calls the provided function with the Client instance
 func Execute(cliFunc ClientFunc) error {
-	var err error
-	c, err := pool.Get()
-	defer c.Close()
+	persistenceClient, err := pool.Get()
+	defer persistenceClient.Close()
 	if err != nil {
 		return err
 	}
-	return cliFunc(c)
+	return cliFunc(persistenceClient)
 }

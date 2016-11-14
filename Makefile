@@ -5,9 +5,7 @@ BUILD       	:= $(shell openssl rand -hex 10)
 VERSION     	:= $(shell if [ -f version ]; then awk '{printf $1}' < version; else openssl rand -hex 5; fi)
 MAKEFILE    	:= $(word $(words $(MAKEFILE_LIST)), $(MAKEFILE_LIST))
 BASE_DIR    	:= $(shell cd $(dir $(MAKEFILE)); pwd)
-ALLPKGS        	:= $(shell go list ./... | grep -v /vendor/)
-PKGS        	:= $(shell go list ./... | grep -v /vendor/ | grep -v /itest)
-IPKGS        	:= $(shell go list ./... | grep -v /vendor/ | grep /itest)
+PKGS        	:= $(shell go list ./... | grep -v /vendor/)
 
 #Test and Benchmark Parameters
 TEST_PKGS ?= 
@@ -57,17 +55,17 @@ reset: clean
 
 .PHONY: test_all
 test_all:
-	go test -v -race $(ALLPKGS)
+	go test -v -race $(PKGS)
 
 .PHONY: test
 test:
 	@if [ "$(TEST_PKGS)" == "" ]; then \
 	    echo "Unit Test All Pkgs";\
-		go test -v -race $(PKGS) || exit 501;\
+		go test -v -race -run=Unit $(PKGS) || exit 501;\
 	else \
 	    echo "Unit Test Selected Pkgs=$(TEST_PKGS)";\
 	    for tstpkg in $(TEST_PKGS); do \
-			go test -v -race $(REPO)/$$tstpkg || exit 501;\
+			go test -v -race -run=Unit $(REPO)/$$tstpkg || exit 501;\
 		done; \
 	fi
 
@@ -75,30 +73,30 @@ test:
 itest:
 	@if [ "$(TEST_PKGS)" == "" ]; then \
 	    echo "Integration Test All Pkgs";\
-		go test -v -race $(IPKGS) || exit 501;\
+		go test -v -race -run=Int $(PKGS) || exit 501;\
 	else \
 	    echo "Integration Unit Test Selected Pkgs=$(TEST_PKGS)";\
 	    for tstpkg in $(TEST_PKGS); do \
-			go test -v -race $(REPO)/$$tstpkg/itest || exit 501;\
+			go test -v -race -run=Int $(REPO)/$$tstpkg/itest || exit 501;\
 		done; \
 	fi
 
 .PHONY: bench_all
 bench_all:
-	#go test -bench=. -run="^$$" -cpuprofile=cpu.pprof -memprofile=mem.pprof -benchmem $(IPKGS)
+	#go test -bench=. -run="^$$" -cpuprofile=cpu.pprof -memprofile=mem.pprof -benchmem $(PKGS)
 	go test -bench=. -run="^$$" -benchmem $(PKGS)
 
 .PHONY: benchmark
 bench:
 	@if [ "$(TEST_PKGS)" == "" ]; then \
 	    echo "Benchmark all Pkgs" ;\
-	    for tstpkg in $(IPKGS); do \
+	    for tstpkg in $(PKGS); do \
 		    go test -bench=. -run="^$$" -cpuprofile=cpu.pprof -memprofile=mem.pprof -benchmem $$tstpkg || exit 501;\
 		done; \
 	else \
 	    echo "Benchmark Selected Pkgs=$(TEST_PKGS)" ;\
 	    for tstpkg in $(TEST_PKGS); do \
-		    go test -bench=. -run="^$$" -cpuprofile=cpu.pprof -memprofile=mem.pprof -benchmem $(REPO)/$$tstpkg/itest || exit 501;\
+		    go test -bench=. -run="^$$" -cpuprofile=cpu.pprof -memprofile=mem.pprof -benchmem $(REPO)/$$tstpkg || exit 501;\
 		done; \
 	fi
 

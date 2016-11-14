@@ -6,114 +6,189 @@ import (
 	"farm.e-pedion.com/repo/persistence"
 	"fmt"
 	"github.com/gocql/gocql"
-	"github.com/matryer/resync"
-	"time"
+	"strings"
 )
 
-//pool is a variable to hold the Cassandra Pool
 var (
-	pool          *Pool
-	once          resync.Once
-	configuration *Configuration
+	NotFoundErr        = gocql.ErrNotFound
+	CassandraClientKey = "cassandra.Client"
+	ClientNotFoundErr  = errors.New("cassandra.ClientNotFoundErr message='Cassandra client does not found at context'")
 )
 
-//Configuration holds Cassandra connections parameters
-type Configuration struct {
-	URL       string        `json:"url" mapstructure:"url"`
-	Keyspace  string        `json:"keyspace" mapstructure:"keyspace"`
-	Username  string        `json:"username" mapstructure:"username"`
-	Password  string        `json:"password" mapstructure:"password"`
-	NumConns  int           `json:"numConns" mapstructure:"numConns"`
-	KeepAlive time.Duration `json:"keepAliveDuration" mapstructure:"keepAliveDuration"`
+func NewDelegateSession(d *gocql.Session) Session {
+	return &DelegateSession{
+		session: d,
+	}
 }
 
-func (c Configuration) String() string {
-	return fmt.Sprintf("cassandra.Configuration URL=%v Keyspace=%v Username=%v Password=%v NumConns=%d KeepAlive=%s",
-		c.URL, c.Keyspace, c.Username, c.Password, c.NumConns, c.KeepAlive,
-	)
-}
-
-//Setup configures a poll for database connections
-func Setup(config *Configuration) error {
-	// if err := config.UnmarshalKey("db.cassandra", &configuration); err != nil {
-	// 	logger.Info("cassandra.GetConfigErr", logger.Err(err))
-	// 	return err
-	// }
-	logger.Info("cassandra.ConfigCluster",
-		logger.String("configuration", configuration.String()),
-	)
-	cluster := gocql.NewCluster(configuration.URL)
-	cluster.NumConns = configuration.NumConns
-	cluster.SocketKeepalive = configuration.KeepAlive
-	cluster.ProtoVersion = 4
-	cluster.Keyspace = configuration.Keyspace
-	cluster.Authenticator = gocql.PasswordAuthenticator{
-		Username: configuration.Username,
-		Password: configuration.Password,
-	}
-
-	session, err := cluster.CreateSession()
-	if err != nil {
-		return fmt.Errorf("cassandra.CreateSessionError message=%v", err.Error())
-	}
-	pool = &Pool{
-		cluster: cluster,
-		session: session,
-	}
-	logger.Info("cassandra.DriverConfigured",
-		logger.String("config", configuration.String()),
-	)
-	configuration = config
-	return nil
-}
-
-//GetPool gets the singleton db pool reference.
-//You must call Setup before get the pool reference
-func GetPool() (*Pool, error) {
-	if pool == nil {
-		return nil, errors.New("SetupMustCalled: Message='You must call Setup with a CassandraConfig before get a Cassandrapool reference')")
-	}
-	return pool, nil
-}
-
-//Pool controls how new gocql.Session will create and maintained
-type Pool struct {
-	cluster *gocql.ClusterConfig
+type DelegateSession struct {
 	session *gocql.Session
 }
 
-func (c Pool) String() string {
-	return fmt.Sprintf("CassandraPool Configuration=%s ClusterIsNil=%t SessionIsNil=%t",
-		configuration.String(),
-		c.cluster == nil,
-		c.session == nil,
-	)
+func (d *DelegateSession) Query(cql string, params ...interface{}) Query {
+	cqlQuery := d.session.Query(cql, params...)
+	return NewDelegateQuery(cqlQuery)
 }
 
-//Get creates and returns a Client reference
-func (c *Pool) Get() (persistence.Client, error) {
-	if c == nil || c.session == nil {
-		return nil, errors.New("SetupMustCalled: Message='You must call Setup with a CassandraConfig before get a Cassandrapool reference')")
-	}
-	if c.session.Closed() {
-		return nil, fmt.Errorf("cassandra.SessionIsClosedErr")
-	}
-	logger.Debug("cassandra.GetSession",
-		logger.String("Pool", c.String()),
-		logger.Bool("SessionIsNil", c.session == nil),
-		logger.Bool("SessionIsClosed", c.session.Closed()),
-	)
-	return NewClient(c.session), nil
+func (d *DelegateSession) Closed() bool {
+	return d.session.Closed()
 }
 
-//Close close the database pool
-func (c *Pool) Close() error {
-	if c == nil || c.cluster == nil {
-		return errors.New("SetupMustCalled: Message='You must call Setup with a CassandraBConfig before get a Cassandrapool reference')")
+func (d *DelegateSession) Close() {
+	d.session.Close()
+}
+
+func NewDelegateQuery(d *gocql.Query) Query {
+	return &DelegateQuery{
+		query: d,
 	}
-	logger.Info("CloseCassandraSession",
-		logger.String("CassandraPool", pool.String()),
+}
+
+type DelegateQuery struct {
+	query *gocql.Query
+}
+
+func (d *DelegateQuery) Consistency(c gocql.Consistency) Query {
+	d.query = d.query.Consistency(c)
+	return d
+}
+
+func (d *DelegateQuery) Exec() error {
+	return d.query.Exec()
+}
+
+// func (d *DelegateQuery) Iter() persistence.Iter {
+// 	cqlIter := d.query.Iter()
+// 	return NewDelegateIter(cqlIter)
+// }
+
+func (d *DelegateQuery) PageSize(n int) Query {
+	d.query = d.query.PageSize(n)
+	return d
+}
+
+func (d *DelegateQuery) Release() {
+	d.query.Release()
+}
+
+func (d *DelegateQuery) Scan(dest ...interface{}) error {
+	return d.query.Scan(dest...)
+}
+
+type sessionObject struct {
+	//session is a transient pointer to database connection
+	session Session
+}
+
+//SetSession attachs a database connection to Card
+func (d *sessionObject) SetSession(session Session) error {
+	if session == nil {
+		return errors.New("NullSessionReferenceErr: Message='The db parameter is required'")
+	}
+	d.session = session
+	return nil
+}
+
+//GetSession returns the Card attached connection
+func (d sessionObject) GetSession() (Session, error) {
+	if d.session == nil {
+		return nil, errors.New("NotAttachedErr: Message='The cassandra session is null'")
+	}
+	return d.session, nil
+}
+
+func (d *sessionObject) Close() error {
+	// return d.SetSession(nil)
+	return nil
+}
+
+//QuerySupport adds query capability to the struct
+type QuerySupport struct {
+	sessionObject
+}
+
+//QueryOne executes the single result cql query with the provided parameters and fetch the result
+func (q *QuerySupport) QueryOne(query string, fetchFunc func(persistence.Fetchable) error, params ...interface{}) error {
+	if strings.TrimSpace(query) == "" {
+		return errors.New("identity.QuerySupport.QueryError: Messages='NilReadQuery")
+	}
+	if params == nil || len(params) <= 0 {
+		return errors.New("identity.QuerySupport.QueryError: Messages='EmptyReadParameters")
+	}
+	if fetchFunc == nil {
+		return errors.New("identity.QuerySupport.QueryError: Messages='NilFetchFunction")
+	}
+	cqlQuery := q.session.Query(query, params...).Consistency(gocql.One)
+	return fetchFunc(cqlQuery)
+}
+
+//Query executes the cql query with the provided parameters and process the results
+// func (q *QuerySupport) Query(query string, iterFunc func(persistence.Iterable) error, params ...interface{}) error {
+// 	if strings.TrimSpace(query) == "" {
+// 		return errors.New("QueryError[Messages='EmptyCQLQuery']")
+// 	}
+// 	if params == nil || len(params) <= 0 {
+// 		return errors.New("QueryError[Messages='EmptyQueryParameters']")
+// 	}
+// 	if iterFunc == nil {
+// 		return errors.New("QueryError[Messages='NilIterFunc']")
+// 	}
+// 	cqlQuery := q.session.Query(query, params...)
+// 	return iterFunc(cqlQuery)
+// }
+
+//ExecSupport adds cql exec capability to the struct
+type ExecSupport struct {
+	sessionObject
+}
+
+//Exec exeutes the command with the provided parameters
+func (i *ExecSupport) Exec(cql string, params ...interface{}) error {
+	if strings.TrimSpace(cql) == "" {
+		return errors.New("ExecError[Messages='NilCQLQuery']")
+	}
+	if params == nil || len(params) <= 0 {
+		return errors.New("ExecParametersLenInvalid[Messages='EmptyExecParameters']")
+	}
+	err := i.session.Query(cql, params...).Exec()
+	if err != nil {
+		logger.Error("CQLExecutionFalied",
+			logger.String("CQL", cql),
+			logger.Struct("Parameters", params),
+		)
+		return err
+	}
+	logger.Debug("CQLExecutedSuccessfully",
+		logger.String("CQL", cql),
+		logger.Struct("Parameters", params),
 	)
-	c.session.Close()
+	return nil
+}
+
+//NewClient creates a new instance of the CQLClient
+func NewClient(session Session) *Client {
+	client := new(Client)
+	client.QuerySupport.SetSession(session)
+	client.ExecSupport.SetSession(session)
+	return client
+}
+
+//CQLClient adds full query and exec support fot the struct
+type Client struct {
+	QuerySupport
+	ExecSupport
+}
+
+func (c *Client) Close() error {
+	var errs []error
+	if err := c.QuerySupport.Close(); err != nil {
+		errs = append(errs, err)
+	}
+	if err := c.ExecSupport.Close(); err != nil {
+		errs = append(errs, err)
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("cassandra.Client.CloseErr msg='%v'", errs)
+	}
 	return nil
 }
