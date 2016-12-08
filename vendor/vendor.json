@@ -3,6 +3,10 @@
 	"ignore": "test",
 	"package": [
 		{
+			"path": "appengine/cloudsql",
+			"revision": ""
+		},
+		{
 			"checksumSHA1": "saRdqhwimWjSqWa1TyUQ49i9ZkU=",
 			"origin": "farm.e-pedion.com/repo/logger/vendor/farm.e-pedion.com/repo/config",
 			"path": "farm.e-pedion.com/repo/config",
@@ -42,6 +46,12 @@
 			"path": "github.com/fsnotify/fsnotify",
 			"revision": "32dcefb295ecd0d71ace56f451b355a4467bf998",
 			"revisionTime": "2016-11-13T00:40:02Z"
+		},
+		{
+			"checksumSHA1": "xmTgJXWHguGKHPuZE50FIbs88L0=",
+			"path": "github.com/go-sql-driver/mysql",
+			"revision": "a0583e0143b1624142adab07e0e97fe106d99561",
+			"revisionTime": "2016-12-01T11:50:36Z"
 		},
 		{
 			"checksumSHA1": "riHEWtZuRKjaIo+ceN+ImkeLIJk=",
@@ -148,6 +158,18 @@
 			"path": "github.com/kr/fs",
 			"revision": "32dcefb295ecd0d71ace56f451b355a4467bf998",
 			"revisionTime": "2016-11-13T00:40:02Z"
+		},
+		{
+			"checksumSHA1": "avqi4lkviHdrNJ92cXCwrw9x870=",
+			"path": "github.com/lib/pq",
+			"revision": "4a82388ebc5138c8289fe9bc602cb0b3e32cd617",
+			"revisionTime": "2016-11-29T22:14:28Z"
+		},
+		{
+			"checksumSHA1": "xppHi82MLqVx1eyQmbhTesAEjx8=",
+			"path": "github.com/lib/pq/oid",
+			"revision": "4a82388ebc5138c8289fe9bc602cb0b3e32cd617",
+			"revisionTime": "2016-11-29T22:14:28Z"
 		},
 		{
 			"checksumSHA1": "S6PDDQMYaKwLDIP/NsRYb4FRAqQ=",

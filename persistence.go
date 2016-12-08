@@ -38,7 +38,8 @@ type Iter interface {
 
 //Iterable supply the Iter interface for a struct
 type Iterable interface {
-	Iter() Iter
+	Fetchable
+	Next() bool
 }
 
 //Reader provides the interface for persistence read actions
