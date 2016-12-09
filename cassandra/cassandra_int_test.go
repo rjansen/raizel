@@ -2,6 +2,7 @@ package cassandra
 
 import (
 	"farm.e-pedion.com/repo/config"
+	"farm.e-pedion.com/repo/logger"
 	"farm.e-pedion.com/repo/persistence"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -44,7 +45,7 @@ func before() error {
 	return err
 }
 
-func TestIntQuery(t *testing.T) {
+func TestIntQueryOne(t *testing.T) {
 	if beforeErr := before(); beforeErr != nil {
 		assert.Fail(t, beforeErr.Error())
 	}
@@ -57,7 +58,7 @@ func TestIntQuery(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestIntQueryErr(t *testing.T) {
+func TestIntQueryOneErr(t *testing.T) {
 	if beforeErr := before(); beforeErr != nil {
 		assert.Fail(t, beforeErr.Error())
 	}
@@ -68,4 +69,38 @@ func TestIntQueryErr(t *testing.T) {
 			return f.Scan()
 		}, "mockValue")
 	assert.NotNil(t, err)
+}
+
+func TestIntQuery(t *testing.T) {
+	if beforeErr := before(); beforeErr != nil {
+		assert.Fail(t, beforeErr.Error())
+	}
+	assert.NotNil(t, persistenceClient)
+	err := persistenceClient.Query("select * from login where username in (?, ?)",
+		func(f persistence.Iterable) error {
+			assert.NotNil(t, f)
+			logger.Infof("Iterable=%+v", f)
+			records := 0
+			for f.Next() {
+				fetchErr := f.Scan(nil, nil, nil, nil)
+				assert.Nil(t, fetchErr)
+				records++
+			}
+			assert.Equal(t, 2, records)
+			return nil
+		}, "rjansen", "darkside")
+	assert.Nil(t, err)
+}
+
+func TestIntQueryErr(t *testing.T) {
+	if beforeErr := before(); beforeErr != nil {
+		assert.Fail(t, beforeErr.Error())
+	}
+	assert.NotNil(t, persistenceClient)
+	err := persistenceClient.Query("select * from cql.mock m where m.mockField = ?",
+		func(f persistence.Iterable) error {
+			return f.Scan()
+		}, "mockValue")
+	assert.NotNil(t, err)
+
 }

@@ -107,7 +107,7 @@ coverage:
 	@touch $(PKG_COVERAGE)
 	@touch $(COVERAGE_FILE)
 	@if [ "$(TEST_PKGS)" == "" ]; then \
-		for pkg in $(ALLPKGS); do \
+		for pkg in $(PKGS); do \
 			go test -v -coverprofile=$(PKG_COVERAGE) $$pkg || exit 501; \
 			if (( `grep -c -v 'mode: set' $(PKG_COVERAGE)` > 0 )); then \
 				grep -v 'mode: set' $(PKG_COVERAGE) >> $(COVERAGE_FILE); \

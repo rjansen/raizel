@@ -33,6 +33,7 @@ func TestIntPgSqlSetup(t *testing.T) {
 }
 
 func TestIntPgSqlQueryOne(t *testing.T) {
+	assert.NotNil(t, pgsqlClient)
 	err := pgsqlClient.QueryOne("select * from rarity where id = $1",
 		func(f persistence.Fetchable) error {
 			assert.NotNil(t, f)
@@ -59,21 +60,32 @@ func TestIntPgSqlQueryOneErr(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-// func TestIntPgSqlQuery(t *testing.T) {
-// 	err := pgsqlClient.Query("select * from rarity",
-// 		func(f persistence.Iterable) error {
-// 			assert.NotNil(t, f)
-// 			var id int
-// 			var name string
-// 			var alias string
-// 			for f.Next() {
-// 				err := f.Scan(&id, &name, &alias)
-// 				assert.Nil(t, err)
-// 				assert.NotZero(t, id)
-// 				assert.NotZero(t, name)
-// 				assert.NotZero(t, alias)
-// 			}
-// 			return nil
-// 		}, 1)
-// 	assert.Nil(t, err)
-// }
+func TestIntPgSqlQuery(t *testing.T) {
+	assert.NotNil(t, pgsqlClient)
+	err := pgsqlClient.Query("select * from rarity where id > $1",
+		func(f persistence.Iterable) error {
+			assert.NotNil(t, f)
+			var id int
+			var name string
+			var alias string
+			for f.Next() {
+				err := f.Scan(&id, &name, &alias)
+				assert.Nil(t, err)
+				assert.NotZero(t, id)
+				assert.NotZero(t, name)
+				assert.NotZero(t, alias)
+			}
+			return nil
+		}, 0)
+	assert.Nil(t, err)
+}
+
+func TestIntPgSqlQueryErr(t *testing.T) {
+	assert.NotNil(t, pgsqlClient)
+	err := pgsqlClient.Query("select * from cql.mock m where m.mockField > ?",
+		func(f persistence.Iterable) error {
+			assert.NotNil(t, f)
+			return f.Scan()
+		}, 0)
+	assert.NotNil(t, err)
+}

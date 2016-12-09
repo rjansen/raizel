@@ -74,6 +74,14 @@ type DelegateRows struct {
 	rows *sql.Rows
 }
 
+func (d *DelegateRows) Next() bool {
+	return d.rows.Next()
+}
+
+func (d *DelegateRows) Scan(dest ...interface{}) error {
+	return d.rows.Scan(dest...)
+}
+
 type dbObject struct {
 	//db is a transient pointer to database connection
 	db SqlDB
@@ -122,22 +130,22 @@ func (q *QuerySupport) QueryOne(query string, fetchFunc func(persistence.Fetchab
 }
 
 //Query executes the sql query with the provided parameters and send the results to the provided iter function
-// func (q *QuerySupport) Query(query string, iterFunc func(persistence.Iterable) error, params ...interface{}) error {
-// 	if strings.TrimSpace(query) == "" {
-// 		return errors.New("QueryError[Messages='EmptyCQLQuery']")
-// 	}
-// 	if params == nil || len(params) <= 0 {
-// 		return errors.New("QueryError[Messages='EmptyQueryParameters']")
-// 	}
-// 	if iterFunc == nil {
-// 		return errors.New("QueryError[Messages='NilIterFunc']")
-// 	}
-// 	rows, err := q.db.Query(query, params...)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return iterFunc(rows)
-// }
+func (q *QuerySupport) Query(query string, iterFunc func(persistence.Iterable) error, params ...interface{}) error {
+	if strings.TrimSpace(query) == "" {
+		return errors.New("QueryError[Messages='EmptyCQLQuery']")
+	}
+	if params == nil || len(params) <= 0 {
+		return errors.New("QueryError[Messages='EmptyQueryParameters']")
+	}
+	if iterFunc == nil {
+		return errors.New("QueryError[Messages='NilIterFunc']")
+	}
+	rows, err := q.db.Query(query, params...)
+	if err != nil {
+		return err
+	}
+	return iterFunc(rows)
+}
 
 //ExecSupport adds cql exec capability to the struct
 type ExecSupport struct {

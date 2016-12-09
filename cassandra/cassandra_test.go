@@ -90,7 +90,7 @@ func TestUnitClientPool(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestUnitQueryExec(t *testing.T) {
+func TestUnitQueryOneExec(t *testing.T) {
 	mockQuery := NewQueryMock()
 	mockQuery.On("Consistency", mock.Anything).Return(mockQuery)
 	mockQuery.On("Scan", mock.Anything).Return(nil)
@@ -108,7 +108,7 @@ func TestUnitQueryExec(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestUnitQueryExecErr(t *testing.T) {
+func TestUnitQueryOneExecErr(t *testing.T) {
 	mockQuery := NewQueryMock()
 	mockQuery.On("Consistency", mock.Anything).Return(mockQuery)
 	mockErr := errors.New("FetchMockErr")
@@ -125,6 +125,74 @@ func TestUnitQueryExecErr(t *testing.T) {
 			scanErr := f.Scan(nil)
 			assert.Equal(t, mockErr, scanErr)
 			return scanErr
+		}, "mockValue")
+	assert.NotNil(t, err)
+}
+
+func TestUnitQueryExec(t *testing.T) {
+	mockIterable := NewIterableMock()
+	records := 5
+	nextRecordIdx := 0
+	nextCall := mockIterable.On("Next")
+	nextCall.Run(
+		func(args mock.Arguments) {
+			nextRecordIdx++
+			if nextRecordIdx <= records {
+				nextCall.ReturnArguments = []interface{}{true}
+			} else {
+				nextCall.ReturnArguments = []interface{}{false}
+			}
+		},
+	)
+	mockIterable.On("Scan", mock.Anything).Return(nil)
+	mockIter := NewIterMock()
+	mockIter.On("Close").Return(nil)
+	mockIter.On("Scanner").Return(mockIterable)
+	mockQuery := NewQueryMock()
+	mockQuery.On("Consistency", mock.Anything).Return(mockQuery)
+	mockQuery.On("Iter").Return(mockIter)
+	sessionMock := NewSessionMock()
+	sessionMock.On("Close")
+	sessionMock.On("Closed").Return(false)
+	sessionMock.On("Query", mock.Anything, mock.Anything).Return(mockQuery)
+	persistenceClient := NewClient(sessionMock)
+	assert.NotNil(t, persistenceClient)
+	err := persistenceClient.Query("select * from cql.mock m where m.mockField = ?",
+		func(f persistence.Iterable) error {
+			assert.NotNil(t, f)
+			fetchedRecords := 0
+			for f.Next() {
+				fetchErr := f.Scan(nil)
+				assert.Nil(t, fetchErr)
+				fetchedRecords++
+			}
+			assert.Equal(t, records, fetchedRecords)
+			return nil
+		}, "mockValue")
+	assert.Nil(t, err)
+}
+
+func TestUnitQueryExecErr(t *testing.T) {
+	mockIterable := NewIterableMock()
+	mockIterable.On("Next").Return(true)
+	mockErr := errors.New("mockErr")
+	mockIterable.On("Scan", mock.Anything).Return(mockErr)
+	mockIter := NewIterMock()
+	mockIter.On("Close").Return(nil)
+	mockIter.On("Scanner").Return(mockIterable)
+	mockQuery := NewQueryMock()
+	mockQuery.On("Consistency", mock.Anything).Return(mockQuery)
+	mockQuery.On("Iter").Return(mockIter)
+	sessionMock := NewSessionMock()
+	sessionMock.On("Close")
+	sessionMock.On("Closed").Return(false)
+	sessionMock.On("Query", mock.Anything, mock.Anything).Return(mockQuery)
+	persistenceClient := NewClient(sessionMock)
+	assert.NotNil(t, persistenceClient)
+	err := persistenceClient.Query("select * from cql.mock m where m.mockField = ?",
+		func(f persistence.Iterable) error {
+			assert.NotNil(t, f)
+			return f.Scan(nil)
 		}, "mockValue")
 	assert.NotNil(t, err)
 }

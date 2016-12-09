@@ -32,7 +32,8 @@ func TestIntMySqlSetup(t *testing.T) {
 	assert.NotNil(t, mysqlClient)
 }
 
-func TestIntMySqlQuery(t *testing.T) {
+func TestIntMySqlQueryOne(t *testing.T) {
+	assert.NotNil(t, mysqlClient)
 	err := mysqlClient.QueryOne("select * from deck where id = ?",
 		func(f persistence.Fetchable) error {
 			assert.NotNil(t, f)
@@ -49,9 +50,41 @@ func TestIntMySqlQuery(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestIntMySqlQueryErr(t *testing.T) {
+func TestIntMySqlQueryOneErr(t *testing.T) {
+	assert.NotNil(t, mysqlClient)
 	err := mysqlClient.QueryOne("select * from cql.mock m where m.mockField = ?",
 		func(f persistence.Fetchable) error {
+			assert.NotNil(t, f)
+			return f.Scan()
+		}, "mockValue")
+	assert.NotNil(t, err)
+}
+
+func TestIntMySqlQuery(t *testing.T) {
+	assert.NotNil(t, mysqlClient)
+	err := mysqlClient.Query("select * from deck where id > ?",
+		func(f persistence.Iterable) error {
+			assert.NotNil(t, f)
+			var err error
+			for f.Next() {
+				var id int
+				var name string
+				var idPlayer int
+				err = f.Scan(&id, &name, &idPlayer)
+				assert.Nil(t, err)
+				assert.NotZero(t, id)
+				assert.NotZero(t, name)
+				assert.NotZero(t, idPlayer)
+			}
+			return err
+		}, 0)
+	assert.Nil(t, err)
+}
+
+func TestIntMySqlQueryErr(t *testing.T) {
+	assert.NotNil(t, mysqlClient)
+	err := mysqlClient.Query("select * from cql.mock m",
+		func(f persistence.Iterable) error {
 			assert.NotNil(t, f)
 			return f.Scan()
 		}, "mockValue")

@@ -57,10 +57,10 @@ func (d *DelegateQuery) Exec() error {
 	return d.query.Exec()
 }
 
-// func (d *DelegateQuery) Iter() persistence.Iter {
-// 	cqlIter := d.query.Iter()
-// 	return NewDelegateIter(cqlIter)
-// }
+func (d *DelegateQuery) Iter() Iter {
+	cqlIter := d.query.Iter()
+	return NewDelegateIter(cqlIter)
+}
 
 func (d *DelegateQuery) PageSize(n int) Query {
 	d.query = d.query.PageSize(n)
@@ -73,6 +73,28 @@ func (d *DelegateQuery) Release() {
 
 func (d *DelegateQuery) Scan(dest ...interface{}) error {
 	return d.query.Scan(dest...)
+}
+
+func NewDelegateIter(d *gocql.Iter) Iter {
+	return &DelegateIter{
+		iter: d,
+	}
+}
+
+type DelegateIter struct {
+	iter *gocql.Iter
+}
+
+func (d *DelegateIter) Close() error {
+	return d.iter.Close()
+}
+
+func (d *DelegateIter) NumRows() int {
+	return d.iter.NumRows()
+}
+
+func (d *DelegateIter) Scanner() persistence.Iterable {
+	return d.iter.Scanner()
 }
 
 type sessionObject struct {
@@ -123,19 +145,20 @@ func (q *QuerySupport) QueryOne(query string, fetchFunc func(persistence.Fetchab
 }
 
 //Query executes the cql query with the provided parameters and process the results
-// func (q *QuerySupport) Query(query string, iterFunc func(persistence.Iterable) error, params ...interface{}) error {
-// 	if strings.TrimSpace(query) == "" {
-// 		return errors.New("QueryError[Messages='EmptyCQLQuery']")
-// 	}
-// 	if params == nil || len(params) <= 0 {
-// 		return errors.New("QueryError[Messages='EmptyQueryParameters']")
-// 	}
-// 	if iterFunc == nil {
-// 		return errors.New("QueryError[Messages='NilIterFunc']")
-// 	}
-// 	cqlQuery := q.session.Query(query, params...)
-// 	return iterFunc(cqlQuery)
-// }
+func (q *QuerySupport) Query(query string, iterFunc func(persistence.Iterable) error, params ...interface{}) error {
+	if strings.TrimSpace(query) == "" {
+		return errors.New("QueryError[Messages='EmptyCQLQuery']")
+	}
+	if params == nil || len(params) <= 0 {
+		return errors.New("QueryError[Messages='EmptyQueryParameters']")
+	}
+	if iterFunc == nil {
+		return errors.New("QueryError[Messages='NilIterFunc']")
+	}
+	queryIter := q.session.Query(query, params...).Consistency(gocql.All).Iter()
+	defer queryIter.Close()
+	return iterFunc(queryIter.Scanner())
+}
 
 //ExecSupport adds cql exec capability to the struct
 type ExecSupport struct {

@@ -91,6 +91,24 @@ func (m *RowMock) Scan(dest ...interface{}) error {
 	return args.Error(0)
 }
 
+func NewRowsMock() *RowsMock {
+	return new(RowsMock)
+}
+
+type RowsMock struct {
+	testify.Mock
+}
+
+func (m *RowsMock) Next() bool {
+	args := m.Called()
+	return args.Bool(0)
+}
+
+func (m *RowsMock) Scan(dest ...interface{}) error {
+	args := m.Called(dest)
+	return args.Error(0)
+}
+
 func NewResultMock() *ResultMock {
 	return new(ResultMock)
 }

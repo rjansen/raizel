@@ -86,14 +86,14 @@ func (m *QueryMock) Exec() error {
 	return args.Error(0)
 }
 
-// func (m *QueryMock) Iter() Iter {
-// 	args := m.Called()
-// 	result := args.Get(0)
-// 	if result != nil {
-// 		return result.(Iter)
-// 	}
-// 	return nil
-// }
+func (m *QueryMock) Iter() Iter {
+	args := m.Called()
+	result := args.Get(0)
+	if result != nil {
+		return result.(Iter)
+	}
+	return nil
+}
 
 func (m *QueryMock) PageSize(n int) Query {
 	args := m.Called(n)
@@ -140,11 +140,29 @@ func (m *IterMock) NumRows() int {
 	return 0
 }
 
-func (m *IterMock) Scan(dest ...interface{}) bool {
-	args := m.Called(dest)
+func (m *IterMock) Scanner() persistence.Iterable {
+	args := m.Called()
 	result := args.Get(0)
 	if result != nil {
-		return result.(bool)
+		return result.(persistence.Iterable)
 	}
-	return false
+	return nil
+}
+
+func NewIterableMock() *IterableMock {
+	return new(IterableMock)
+}
+
+type IterableMock struct {
+	testify.Mock
+}
+
+func (m *IterableMock) Next() bool {
+	args := m.Called()
+	return args.Bool(0)
+}
+
+func (m *IterableMock) Scan(dest ...interface{}) error {
+	args := m.Called(dest)
+	return args.Error(0)
 }

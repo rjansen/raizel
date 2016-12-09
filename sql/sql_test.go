@@ -80,7 +80,7 @@ func TestUnitClientPool(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestUnitQueryExec(t *testing.T) {
+func TestUnitQueryOneExec(t *testing.T) {
 	rowMock := NewRowMock()
 	rowMock.On("Scan", mock.Anything).Return(nil)
 	dbMock := NewDBMock()
@@ -98,8 +98,8 @@ func TestUnitQueryExec(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestUnitQueryExecErr(t *testing.T) {
-	mockErr := errors.New("FetchMockErr")
+func TestUnitQueryOneErr(t *testing.T) {
+	mockErr := errors.New("QueryOneMockErr")
 	rowMock := NewRowMock()
 	rowMock.On("Scan", mock.Anything).Return(mockErr)
 	dbMock := NewDBMock()
@@ -115,6 +115,84 @@ func TestUnitQueryExecErr(t *testing.T) {
 			return scanErr
 		}, "mockValue")
 	assert.NotNil(t, err)
+	assert.Equal(t, mockErr, err)
+}
+
+func TestUnitQuery(t *testing.T) {
+	records := 5
+	recordIdx := 0
+	rowsMock := NewRowsMock()
+	queryCall := rowsMock.On("Next")
+	queryCall.Run(
+		func(args mock.Arguments) {
+			recordIdx++
+			if recordIdx <= records {
+				queryCall.ReturnArguments = []interface{}{true}
+			} else {
+				queryCall.ReturnArguments = []interface{}{false}
+			}
+		},
+	)
+	rowsMock.On("Scan", mock.Anything).Return(nil)
+	dbMock := NewDBMock()
+	dbMock.On("Close").Return(nil)
+	dbMock.On("Query", mock.Anything, mock.Anything).Return(rowsMock, nil)
+	persistenceClient := NewClient(dbMock)
+	assert.NotNil(t, persistenceClient)
+	err := persistenceClient.Query("select id, name from sql.mock m where m.mockField != ?",
+		func(f persistence.Iterable) error {
+			assert.NotNil(t, f)
+			fetchedRecords := 0
+			for f.Next() {
+				var id int
+				var name string
+				fetchedErr := f.Scan(&id, &name)
+				assert.Nil(t, fetchedErr)
+				fetchedRecords++
+			}
+			assert.Equal(t, records, fetchedRecords)
+			return nil
+		}, "mockValue")
+	assert.Nil(t, err)
+}
+
+func TestUnitQueryErr(t *testing.T) {
+	mockErr := errors.New("QueryMockErr")
+	dbMock := NewDBMock()
+	dbMock.On("Close").Return(nil)
+	dbMock.On("Query", mock.Anything, mock.Anything).Return(nil, mockErr)
+	persistenceClient := NewClient(dbMock)
+	assert.NotNil(t, persistenceClient)
+	err := persistenceClient.Query("select id, name from sql.mock m where m.mockField != ?",
+		func(f persistence.Iterable) error {
+			assert.NotNil(t, f)
+			var id int
+			var name string
+			return f.Scan(&id, &name)
+		}, "mockValue")
+	assert.NotNil(t, err)
+	assert.Equal(t, mockErr, err)
+}
+
+func TestUnitQueryScanErr(t *testing.T) {
+	mockErr := errors.New("FetchMockErr")
+	rowsMock := NewRowsMock()
+	rowsMock.On("Next").Return(true)
+	rowsMock.On("Scan", mock.Anything).Return(mockErr)
+	dbMock := NewDBMock()
+	dbMock.On("Close").Return(nil)
+	dbMock.On("Query", mock.Anything, mock.Anything).Return(rowsMock, nil)
+	persistenceClient := NewClient(dbMock)
+	assert.NotNil(t, persistenceClient)
+	err := persistenceClient.Query("select id, name from sql.mock m where m.mockField != ?",
+		func(f persistence.Iterable) error {
+			assert.NotNil(t, f)
+			var id int
+			var name string
+			return f.Scan(&id, &name)
+		}, "mockValue")
+	assert.NotNil(t, err)
+	assert.Equal(t, mockErr, err)
 }
 
 func TestUnitExec(t *testing.T) {
@@ -124,7 +202,7 @@ func TestUnitExec(t *testing.T) {
 	dbMock.On("Exec", mock.Anything, mock.Anything).Return(mockResult, nil)
 	persistenceClient := NewClient(dbMock)
 	assert.NotNil(t, persistenceClient)
-	err := persistenceClient.Exec("insert into sql.mock values (?)", "mockValue1", "mockValue2")
+	err := persistenceClient.Exec("insert into sql.mock values (?, ?)", "mockValue1", "mockValue2")
 	assert.Nil(t, err)
 }
 

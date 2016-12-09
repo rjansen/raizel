@@ -29,13 +29,6 @@ type Fetchable interface {
 	Scan(dest ...interface{}) error
 }
 
-//Iter is an interface to read data sets from cassandra
-type Iter interface {
-	Close() error
-	NumRows() int
-	Scan(dest ...interface{}) bool
-}
-
 //Iterable supply the Iter interface for a struct
 type Iterable interface {
 	Fetchable
@@ -45,7 +38,7 @@ type Iterable interface {
 //Reader provides the interface for persistence read actions
 type Reader interface {
 	QueryOne(query string, fetchFunc func(Fetchable) error, params ...interface{}) error
-	// Query(query string, iterFunc func(Iterable) error, params ...interface{}) error
+	Query(query string, iterFunc func(Iterable) error, params ...interface{}) error
 	Close() error
 }
 

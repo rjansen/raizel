@@ -45,12 +45,19 @@ type Query interface {
 	// func (q *Query) Bind(v ...interface{}) *Query
 	Consistency(gocql.Consistency) Query
 	Exec() error
-	// Iter() persistence.Iter
+	Iter() Iter
 	PageSize(n int) Query
 	Release()
 	Scan(dest ...interface{}) error
 	//String() string
 	//WithContext(ctx context.Context) Query
+}
+
+//Iter is an interface to read data sets from cassandra
+type Iter interface {
+	Close() error
+	NumRows() int
+	Scanner() persistence.Iterable
 }
 
 //Setup configures a poll for database connections

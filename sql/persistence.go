@@ -46,10 +46,8 @@ type SqlDB interface {
 	//func (db *DB) Stats() DBStats
 }
 
-type Result interface {
-}
-
 type Rows interface {
+	persistence.Iterable
 }
 
 type Row interface {

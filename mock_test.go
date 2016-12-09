@@ -80,36 +80,3 @@ func (m *ClientMock) Close() error {
 	args := m.Called()
 	return args.Error(0)
 }
-
-//NewIterMock returns and initializes a new iter mock instance
-func NewIterMock() *IterMock {
-	return new(IterMock)
-}
-
-//IterMock is a mock for the Iter interface
-type IterMock struct {
-	testify.Mock
-}
-
-func (m *IterMock) Close() error {
-	args := m.Called()
-	return args.Error(0)
-}
-
-func (m *IterMock) NumRows() int {
-	args := m.Called()
-	result := args.Get(0)
-	if result != nil {
-		return result.(int)
-	}
-	return 0
-}
-
-func (m *IterMock) Scan(dest ...interface{}) bool {
-	args := m.Called(dest)
-	result := args.Get(0)
-	if result != nil {
-		return result.(bool)
-	}
-	return false
-}
