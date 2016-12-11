@@ -1,4 +1,4 @@
-package cassandra
+package sql
 
 import (
 	"database/sql"

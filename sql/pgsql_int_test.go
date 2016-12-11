@@ -1,4 +1,4 @@
-package cassandra
+package sql
 
 import (
 	"farm.e-pedion.com/repo/persistence"
