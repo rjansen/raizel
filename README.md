@@ -1,2 +1,2 @@
-# persistence
-An interface for Cassandra, MongoDB, MySQL and PostgreSQL
+# raizel
+A persistence helper with support for MySQL, PostgreSQL and MongoDB
