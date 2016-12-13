@@ -3,9 +3,9 @@ package sql
 import (
 	"database/sql"
 	"errors"
-	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/persistence"
 	"fmt"
+	"github.com/rjansen/l"
+	"github.com/rjansen/raizel"
 
 	"time"
 )
@@ -47,17 +47,17 @@ type SqlDB interface {
 }
 
 type Rows interface {
-	persistence.Iterable
+	raizel.Iterable
 }
 
 type Row interface {
-	persistence.Fetchable
+	raizel.Fetchable
 }
 
 //Setup configures a poll for database connections
 func Setup(cfg *Configuration) error {
-	logger.Info("sql.ConfigDatasource",
-		logger.String("configuration", cfg.String()),
+	l.Info("sql.ConfigDatasource",
+		l.String("configuration", cfg.String()),
 	)
 	datasource := &Datasource{
 		Driver:   cfg.Driver,
@@ -73,12 +73,12 @@ func Setup(cfg *Configuration) error {
 		datasource: datasource,
 		db:         NewDelegateDB(db),
 	}
-	if err = persistence.Setup(pool); err != nil {
+	if err = raizel.Setup(pool); err != nil {
 		return fmt.Errorf("sql.SetupPersistenceErr err=%v", err.Error())
 	}
-	logger.Info("sql.DriverConfigured",
-		logger.String("driver", cfg.URL),
-		logger.String("url", cfg.Driver),
+	l.Info("sql.DriverConfigured",
+		l.String("driver", cfg.URL),
+		l.String("url", cfg.Driver),
 	)
 	Config = cfg
 	return nil
@@ -99,15 +99,15 @@ func (c Pool) String() string {
 }
 
 //Get creates and returns a Client reference
-func (c *Pool) Get() (persistence.Client, error) {
+func (c *Pool) Get() (raizel.Client, error) {
 	if c == nil || c.db == nil {
 		return nil, errors.New("SetupMustCalled: Message='You must call Setup with a SqlConfig before get a SqlPool reference')")
 	}
 	if err := c.db.Ping(); err != nil {
 		return nil, err
 	}
-	logger.Debug("sql.Get",
-		logger.String("Pool", c.String()),
+	l.Debug("sql.Get",
+		l.String("Pool", c.String()),
 	)
 	return NewClient(c.db), nil
 }
@@ -117,8 +117,8 @@ func (c *Pool) Close() error {
 	if c == nil || c.db == nil {
 		return errors.New("SetupMustCalled: Message='You must call Setup with a SqlConfig before get a SqlPool reference')")
 	}
-	logger.Info("sql.CloseDB",
-		logger.String("DBPool", c.String()),
+	l.Info("sql.CloseDB",
+		l.String("DBPool", c.String()),
 	)
 	return c.db.Close()
 }

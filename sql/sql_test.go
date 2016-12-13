@@ -3,15 +3,15 @@ package sql
 import (
 	"database/sql"
 	"errors"
-	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/persistence"
+	"github.com/rjansen/l"
+	"github.com/rjansen/raizel"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"testing"
 )
 
 func init() {
-	if err := logger.Setup(&logger.Configuration{}); err != nil {
+	if err := l.Setup(&l.Configuration{}); err != nil {
 		panic(err)
 	}
 }
@@ -67,8 +67,8 @@ func TestUnitClientPool(t *testing.T) {
 		db:         dbMock,
 	}
 	Config = &Configuration{}
-	assert.Nil(t, persistence.Setup(setupPool))
-	pool, err := persistence.GetPool()
+	assert.Nil(t, raizel.Setup(setupPool))
+	pool, err := raizel.GetPool()
 	assert.Nil(t, err)
 	assert.NotNil(t, pool)
 	client, err := pool.Get()
@@ -89,7 +89,7 @@ func TestUnitQueryOneExec(t *testing.T) {
 	persistenceClient := NewClient(dbMock)
 	assert.NotNil(t, persistenceClient)
 	err := persistenceClient.QueryOne("select id, name from sql.mock m where m.mockField = ?",
-		func(f persistence.Fetchable) error {
+		func(f raizel.Fetchable) error {
 			assert.NotNil(t, f)
 			var id int
 			var name string
@@ -108,7 +108,7 @@ func TestUnitQueryOneErr(t *testing.T) {
 	persistenceClient := NewClient(dbMock)
 	assert.NotNil(t, persistenceClient)
 	err := persistenceClient.QueryOne("select * from xql.mock m where m.mockField = ?",
-		func(f persistence.Fetchable) error {
+		func(f raizel.Fetchable) error {
 			assert.NotNil(t, f)
 			scanErr := f.Scan(nil)
 			assert.Equal(t, mockErr, scanErr)
@@ -140,7 +140,7 @@ func TestUnitQuery(t *testing.T) {
 	persistenceClient := NewClient(dbMock)
 	assert.NotNil(t, persistenceClient)
 	err := persistenceClient.Query("select id, name from sql.mock m where m.mockField != ?",
-		func(f persistence.Iterable) error {
+		func(f raizel.Iterable) error {
 			assert.NotNil(t, f)
 			fetchedRecords := 0
 			for f.Next() {
@@ -164,7 +164,7 @@ func TestUnitQueryErr(t *testing.T) {
 	persistenceClient := NewClient(dbMock)
 	assert.NotNil(t, persistenceClient)
 	err := persistenceClient.Query("select id, name from sql.mock m where m.mockField != ?",
-		func(f persistence.Iterable) error {
+		func(f raizel.Iterable) error {
 			assert.NotNil(t, f)
 			var id int
 			var name string
@@ -185,7 +185,7 @@ func TestUnitQueryScanErr(t *testing.T) {
 	persistenceClient := NewClient(dbMock)
 	assert.NotNil(t, persistenceClient)
 	err := persistenceClient.Query("select id, name from sql.mock m where m.mockField != ?",
-		func(f persistence.Iterable) error {
+		func(f raizel.Iterable) error {
 			assert.NotNil(t, f)
 			var id int
 			var name string

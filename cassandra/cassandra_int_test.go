@@ -1,17 +1,17 @@
 package cassandra
 
 import (
-	"farm.e-pedion.com/repo/config"
-	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/persistence"
+	"github.com/rjansen/l"
+	"github.com/rjansen/migi"
+	"github.com/rjansen/raizel"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
 )
 
 var (
-	pool              persistence.ClientPool
-	persistenceClient persistence.Client
+	pool              raizel.ClientPool
+	persistenceClient raizel.Client
 	setted            = false
 	key1              = "8b06603b-9b0d-4e8c-8aae-10f988639fe6"
 	expires           = 60
@@ -19,8 +19,8 @@ var (
 )
 
 func init() {
-	os.Args = append(os.Args, "-ecf", "etc/persistence/persistence.yaml")
-	if err := config.UnmarshalKey("persistence.cassandra", &testConfig); err != nil {
+	os.Args = append(os.Args, "-ecf", "etc/raizel/cassandra.yaml")
+	if err := migi.UnmarshalKey("raizel.cassandra", &testConfig); err != nil {
 		panic(err)
 	}
 }
@@ -30,7 +30,7 @@ func setup() error {
 		return err
 	}
 	var err error
-	pool, err = persistence.GetPool()
+	pool, err = raizel.GetPool()
 	return err
 }
 
@@ -51,7 +51,7 @@ func TestIntQueryOne(t *testing.T) {
 	}
 	assert.NotNil(t, persistenceClient)
 	err := persistenceClient.QueryOne("select * from login where username = ?",
-		func(f persistence.Fetchable) error {
+		func(f raizel.Fetchable) error {
 			assert.NotNil(t, f)
 			return f.Scan(nil, nil, nil, nil)
 		}, "darkside")
@@ -64,7 +64,7 @@ func TestIntQueryOneErr(t *testing.T) {
 	}
 	assert.NotNil(t, persistenceClient)
 	err := persistenceClient.QueryOne("select * from cql.mock m where m.mockField = ?",
-		func(f persistence.Fetchable) error {
+		func(f raizel.Fetchable) error {
 			assert.NotNil(t, f)
 			return f.Scan()
 		}, "mockValue")
@@ -77,9 +77,9 @@ func TestIntQuery(t *testing.T) {
 	}
 	assert.NotNil(t, persistenceClient)
 	err := persistenceClient.Query("select * from login where username in (?, ?)",
-		func(f persistence.Iterable) error {
+		func(f raizel.Iterable) error {
 			assert.NotNil(t, f)
-			logger.Infof("Iterable=%+v", f)
+			l.Infof("Iterable=%+v", f)
 			records := 0
 			for f.Next() {
 				fetchErr := f.Scan(nil, nil, nil, nil)
@@ -98,7 +98,7 @@ func TestIntQueryErr(t *testing.T) {
 	}
 	assert.NotNil(t, persistenceClient)
 	err := persistenceClient.Query("select * from cql.mock m where m.mockField = ?",
-		func(f persistence.Iterable) error {
+		func(f raizel.Iterable) error {
 			return f.Scan()
 		}, "mockValue")
 	assert.NotNil(t, err)

@@ -2,10 +2,10 @@ package cassandra
 
 import (
 	"errors"
-	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/persistence"
 	"fmt"
 	"github.com/gocql/gocql"
+	"github.com/rjansen/l"
+	"github.com/rjansen/raizel"
 
 	// "github.com/matryer/resync"
 	"time"
@@ -57,13 +57,13 @@ type Query interface {
 type Iter interface {
 	Close() error
 	NumRows() int
-	Scanner() persistence.Iterable
+	Scanner() raizel.Iterable
 }
 
 //Setup configures a poll for database connections
 func Setup(cfg *Configuration) error {
-	logger.Info("cassandra.ConfigCluster",
-		logger.String("configuration", cfg.String()),
+	l.Info("cassandra.ConfigCluster",
+		l.String("configuration", cfg.String()),
 	)
 	cluster := gocql.NewCluster(cfg.URL)
 	cluster.NumConns = cfg.NumConns
@@ -83,11 +83,11 @@ func Setup(cfg *Configuration) error {
 		cluster: cluster,
 		session: NewDelegateSession(session),
 	}
-	if err = persistence.Setup(pool); err != nil {
+	if err = raizel.Setup(pool); err != nil {
 		return fmt.Errorf("cassandra.SetupPersistenceErr err=%v", err.Error())
 	}
-	logger.Info("cassandra.DriverConfigured",
-		logger.String("config", cfg.String()),
+	l.Info("cassandra.DriverConfigured",
+		l.String("config", cfg.String()),
 	)
 	Config = cfg
 	return nil
@@ -108,17 +108,17 @@ func (c Pool) String() string {
 }
 
 //Get creates and returns a Client reference
-func (c *Pool) Get() (persistence.Client, error) {
+func (c *Pool) Get() (raizel.Client, error) {
 	if c == nil || c.session == nil {
 		return nil, errors.New("SetupMustCalled: Message='You must call Setup with a CassandraConfig before get a Cassandrapool reference')")
 	}
 	if c.session.Closed() {
 		return nil, fmt.Errorf("cassandra.SessionIsClosedErr")
 	}
-	logger.Debug("cassandra.GetSession",
-		logger.String("Pool", c.String()),
-		logger.Bool("SessionIsNil", c.session == nil),
-		logger.Bool("SessionIsClosed", c.session.Closed()),
+	l.Debug("cassandra.GetSession",
+		l.String("Pool", c.String()),
+		l.Bool("SessionIsNil", c.session == nil),
+		l.Bool("SessionIsClosed", c.session.Closed()),
 	)
 	return NewClient(c.session), nil
 }
@@ -128,8 +128,8 @@ func (c *Pool) Close() error {
 	if c == nil || c.cluster == nil {
 		return errors.New("SetupMustCalled: Message='You must call Setup with a CassandraBConfig before get a Cassandrapool reference')")
 	}
-	logger.Info("CloseCassandraSession",
-		logger.String("CassandraPool", c.String()),
+	l.Info("CloseCassandraSession",
+		l.String("CassandraPool", c.String()),
 	)
 	c.session.Close()
 	return nil

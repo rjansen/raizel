@@ -2,10 +2,10 @@ package cassandra
 
 import (
 	"errors"
-	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/persistence"
 	"fmt"
 	"github.com/gocql/gocql"
+	"github.com/rjansen/l"
+	"github.com/rjansen/raizel"
 	"strings"
 )
 
@@ -93,7 +93,7 @@ func (d *DelegateIter) NumRows() int {
 	return d.iter.NumRows()
 }
 
-func (d *DelegateIter) Scanner() persistence.Iterable {
+func (d *DelegateIter) Scanner() raizel.Iterable {
 	return d.iter.Scanner()
 }
 
@@ -130,7 +130,7 @@ type QuerySupport struct {
 }
 
 //QueryOne executes the single result cql query with the provided parameters and fetch the result
-func (q *QuerySupport) QueryOne(query string, fetchFunc func(persistence.Fetchable) error, params ...interface{}) error {
+func (q *QuerySupport) QueryOne(query string, fetchFunc func(raizel.Fetchable) error, params ...interface{}) error {
 	if strings.TrimSpace(query) == "" {
 		return errors.New("identity.QuerySupport.QueryError: Messages='NilReadQuery")
 	}
@@ -145,7 +145,7 @@ func (q *QuerySupport) QueryOne(query string, fetchFunc func(persistence.Fetchab
 }
 
 //Query executes the cql query with the provided parameters and process the results
-func (q *QuerySupport) Query(query string, iterFunc func(persistence.Iterable) error, params ...interface{}) error {
+func (q *QuerySupport) Query(query string, iterFunc func(raizel.Iterable) error, params ...interface{}) error {
 	if strings.TrimSpace(query) == "" {
 		return errors.New("QueryError[Messages='EmptyCQLQuery']")
 	}
@@ -175,15 +175,15 @@ func (i *ExecSupport) Exec(cql string, params ...interface{}) error {
 	}
 	err := i.session.Query(cql, params...).Exec()
 	if err != nil {
-		logger.Error("CQLExecutionFalied",
-			logger.String("CQL", cql),
-			logger.Struct("Parameters", params),
+		l.Error("CQLExecutionFalied",
+			l.String("CQL", cql),
+			l.Struct("Parameters", params),
 		)
 		return err
 	}
-	logger.Debug("CQLExecutedSuccessfully",
-		logger.String("CQL", cql),
-		logger.Struct("Parameters", params),
+	l.Debug("CQLExecutedSuccessfully",
+		l.String("CQL", cql),
+		l.Struct("Parameters", params),
 	)
 	return nil
 }
@@ -196,7 +196,7 @@ func NewClient(session Session) *Client {
 	return client
 }
 
-//CQLClient adds full query and exec support fot the struct
+//Client adds full query and exec support fot the struct
 type Client struct {
 	QuerySupport
 	ExecSupport

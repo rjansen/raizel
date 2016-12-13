@@ -3,9 +3,9 @@ package sql
 import (
 	"database/sql"
 	"errors"
-	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/persistence"
 	"fmt"
+	"github.com/rjansen/l"
+	"github.com/rjansen/raizel"
 	"strings"
 )
 
@@ -115,7 +115,7 @@ type QuerySupport struct {
 }
 
 //QueryOne executes the sql query with the provided parameters and send the single result to the provided fetch function
-func (q *QuerySupport) QueryOne(query string, fetchFunc func(persistence.Fetchable) error, params ...interface{}) error {
+func (q *QuerySupport) QueryOne(query string, fetchFunc func(raizel.Fetchable) error, params ...interface{}) error {
 	if strings.TrimSpace(query) == "" {
 		return errors.New("identity.QuerySupport.QueryError: Messages='NilReadQuery")
 	}
@@ -130,7 +130,7 @@ func (q *QuerySupport) QueryOne(query string, fetchFunc func(persistence.Fetchab
 }
 
 //Query executes the sql query with the provided parameters and send the results to the provided iter function
-func (q *QuerySupport) Query(query string, iterFunc func(persistence.Iterable) error, params ...interface{}) error {
+func (q *QuerySupport) Query(query string, iterFunc func(raizel.Iterable) error, params ...interface{}) error {
 	if strings.TrimSpace(query) == "" {
 		return errors.New("QueryError[Messages='EmptyCQLQuery']")
 	}
@@ -162,16 +162,16 @@ func (i *ExecSupport) Exec(sql string, params ...interface{}) error {
 	}
 	result, err := i.db.Exec(sql, params...)
 	if err != nil {
-		logger.Error("sql.ExecutionFalied",
-			logger.String("SQL", sql),
-			logger.Struct("Parameters", params),
+		l.Error("sql.ExecutionFalied",
+			l.String("SQL", sql),
+			l.Struct("Parameters", params),
 		)
 		return err
 	}
-	logger.Debug("SQLExecutedSuccessfully",
-		logger.String("SQL", sql),
-		logger.Struct("Parameters", params),
-		logger.Struct("Result", result),
+	l.Debug("SQLExecutedSuccessfully",
+		l.String("SQL", sql),
+		l.Struct("Parameters", params),
+		l.Struct("Result", result),
 	)
 	return nil
 }

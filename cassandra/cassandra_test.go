@@ -2,16 +2,16 @@ package cassandra
 
 import (
 	"errors"
-	"farm.e-pedion.com/repo/logger"
-	"farm.e-pedion.com/repo/persistence"
 	"github.com/gocql/gocql"
+	"github.com/rjansen/l"
+	"github.com/rjansen/raizel"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"testing"
 )
 
 func init() {
-	if err := logger.Setup(&logger.Configuration{}); err != nil {
+	if err := l.Setup(&l.Configuration{}); err != nil {
 		panic(err)
 	}
 }
@@ -76,9 +76,9 @@ func TestUnitClientPool(t *testing.T) {
 		cluster: new(gocql.ClusterConfig),
 		session: sessionMock,
 	}
-	assert.Nil(t, persistence.Setup(pool))
+	assert.Nil(t, raizel.Setup(pool))
 	Config = &Configuration{}
-	pool, err := persistence.GetPool()
+	pool, err := raizel.GetPool()
 	assert.Nil(t, err)
 	assert.NotNil(t, pool)
 	client, err := pool.Get()
@@ -101,7 +101,7 @@ func TestUnitQueryOneExec(t *testing.T) {
 	persistenceClient := NewClient(sessionMock)
 	assert.NotNil(t, persistenceClient)
 	err := persistenceClient.QueryOne("select * from cql.mock m where m.mockField = ?",
-		func(f persistence.Fetchable) error {
+		func(f raizel.Fetchable) error {
 			assert.NotNil(t, f)
 			return f.Scan(nil)
 		}, "mockValue")
@@ -120,7 +120,7 @@ func TestUnitQueryOneExecErr(t *testing.T) {
 	persistenceClient := NewClient(sessionMock)
 	assert.NotNil(t, persistenceClient)
 	err := persistenceClient.QueryOne("select * from cql.mock m where m.mockField = ?",
-		func(f persistence.Fetchable) error {
+		func(f raizel.Fetchable) error {
 			assert.NotNil(t, f)
 			scanErr := f.Scan(nil)
 			assert.Equal(t, mockErr, scanErr)
@@ -158,7 +158,7 @@ func TestUnitQueryExec(t *testing.T) {
 	persistenceClient := NewClient(sessionMock)
 	assert.NotNil(t, persistenceClient)
 	err := persistenceClient.Query("select * from cql.mock m where m.mockField = ?",
-		func(f persistence.Iterable) error {
+		func(f raizel.Iterable) error {
 			assert.NotNil(t, f)
 			fetchedRecords := 0
 			for f.Next() {
@@ -190,7 +190,7 @@ func TestUnitQueryExecErr(t *testing.T) {
 	persistenceClient := NewClient(sessionMock)
 	assert.NotNil(t, persistenceClient)
 	err := persistenceClient.Query("select * from cql.mock m where m.mockField = ?",
-		func(f persistence.Iterable) error {
+		func(f raizel.Iterable) error {
 			assert.NotNil(t, f)
 			return f.Scan(nil)
 		}, "mockValue")

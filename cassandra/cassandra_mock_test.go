@@ -1,8 +1,8 @@
 package cassandra
 
 import (
-	"farm.e-pedion.com/repo/persistence"
 	"github.com/gocql/gocql"
+	"github.com/rjansen/raizel"
 	testify "github.com/stretchr/testify/mock"
 )
 
@@ -16,11 +16,11 @@ type ClientPoolMock struct {
 }
 
 //Get returns a cache Client instance
-func (m *ClientPoolMock) Get() (persistence.Client, error) {
+func (m *ClientPoolMock) Get() (raizel.Client, error) {
 	args := m.Called()
 	result := args.Get(0)
 	if result != nil {
-		return result.(persistence.Client), args.Error(1)
+		return result.(raizel.Client), args.Error(1)
 	}
 	return nil, args.Error(1)
 }
@@ -140,11 +140,11 @@ func (m *IterMock) NumRows() int {
 	return 0
 }
 
-func (m *IterMock) Scanner() persistence.Iterable {
+func (m *IterMock) Scanner() raizel.Iterable {
 	args := m.Called()
 	result := args.Get(0)
 	if result != nil {
-		return result.(persistence.Iterable)
+		return result.(raizel.Iterable)
 	}
 	return nil
 }

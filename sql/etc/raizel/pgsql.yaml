@@ -1,7 +1,7 @@
-persistence:
+raizel:
     sql:
-        driver: "mysql"
-        url: "tcp(127.0.0.1:3306)/fivecolors"
+        driver: "postgres"
+        url: "127.0.0.1:5432/fivecolors?sslmode=disable"
         database: "fivecolors"
         username: "fivecolors"
         password: "fivecolors"

@@ -1,15 +1,15 @@
 package sql
 
 import (
-	"farm.e-pedion.com/repo/persistence"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/rjansen/raizel"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 var (
-	mysqlPool   persistence.ClientPool
-	mysqlClient persistence.Client
+	mysqlPool   raizel.ClientPool
+	mysqlClient raizel.Client
 )
 
 func TestIntMySqlSetup(t *testing.T) {
@@ -24,7 +24,7 @@ func TestIntMySqlSetup(t *testing.T) {
 	}
 	err = Setup(mysqlConfig)
 	assert.Nil(t, err)
-	mysqlPool, err = persistence.GetPool()
+	mysqlPool, err = raizel.GetPool()
 	assert.Nil(t, err)
 	assert.NotNil(t, mysqlPool)
 	mysqlClient, err = mysqlPool.Get()
@@ -35,7 +35,7 @@ func TestIntMySqlSetup(t *testing.T) {
 func TestIntMySqlQueryOne(t *testing.T) {
 	assert.NotNil(t, mysqlClient)
 	err := mysqlClient.QueryOne("select * from deck where id = ?",
-		func(f persistence.Fetchable) error {
+		func(f raizel.Fetchable) error {
 			assert.NotNil(t, f)
 			var id int
 			var name string
@@ -53,7 +53,7 @@ func TestIntMySqlQueryOne(t *testing.T) {
 func TestIntMySqlQueryOneErr(t *testing.T) {
 	assert.NotNil(t, mysqlClient)
 	err := mysqlClient.QueryOne("select * from cql.mock m where m.mockField = ?",
-		func(f persistence.Fetchable) error {
+		func(f raizel.Fetchable) error {
 			assert.NotNil(t, f)
 			return f.Scan()
 		}, "mockValue")
@@ -63,7 +63,7 @@ func TestIntMySqlQueryOneErr(t *testing.T) {
 func TestIntMySqlQuery(t *testing.T) {
 	assert.NotNil(t, mysqlClient)
 	err := mysqlClient.Query("select * from deck where id > ?",
-		func(f persistence.Iterable) error {
+		func(f raizel.Iterable) error {
 			assert.NotNil(t, f)
 			var err error
 			for f.Next() {
@@ -84,7 +84,7 @@ func TestIntMySqlQuery(t *testing.T) {
 func TestIntMySqlQueryErr(t *testing.T) {
 	assert.NotNil(t, mysqlClient)
 	err := mysqlClient.Query("select * from cql.mock m",
-		func(f persistence.Iterable) error {
+		func(f raizel.Iterable) error {
 			assert.NotNil(t, f)
 			return f.Scan()
 		}, "mockValue")

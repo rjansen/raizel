@@ -1,15 +1,15 @@
 package sql
 
 import (
-	"farm.e-pedion.com/repo/persistence"
 	_ "github.com/lib/pq"
+	"github.com/rjansen/raizel"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 var (
-	pgsqlPool   persistence.ClientPool
-	pgsqlClient persistence.Client
+	pgsqlPool   raizel.ClientPool
+	pgsqlClient raizel.Client
 )
 
 func TestIntPgSqlSetup(t *testing.T) {
@@ -24,7 +24,7 @@ func TestIntPgSqlSetup(t *testing.T) {
 	}
 	err = Setup(pgsqlConfig)
 	assert.Nil(t, err)
-	pgsqlPool, err = persistence.GetPool()
+	pgsqlPool, err = raizel.GetPool()
 	assert.Nil(t, err)
 	assert.NotNil(t, pgsqlPool)
 	pgsqlClient, err = pgsqlPool.Get()
@@ -35,7 +35,7 @@ func TestIntPgSqlSetup(t *testing.T) {
 func TestIntPgSqlQueryOne(t *testing.T) {
 	assert.NotNil(t, pgsqlClient)
 	err := pgsqlClient.QueryOne("select * from rarity where id = $1",
-		func(f persistence.Fetchable) error {
+		func(f raizel.Fetchable) error {
 			assert.NotNil(t, f)
 			var id int
 			var name string
@@ -53,7 +53,7 @@ func TestIntPgSqlQueryOne(t *testing.T) {
 func TestIntPgSqlQueryOneErr(t *testing.T) {
 	assert.NotNil(t, pgsqlClient)
 	err := pgsqlClient.QueryOne("select * from cql.mock m where m.mockField = ?",
-		func(f persistence.Fetchable) error {
+		func(f raizel.Fetchable) error {
 			assert.NotNil(t, f)
 			return f.Scan()
 		}, "mockValue")
@@ -63,7 +63,7 @@ func TestIntPgSqlQueryOneErr(t *testing.T) {
 func TestIntPgSqlQuery(t *testing.T) {
 	assert.NotNil(t, pgsqlClient)
 	err := pgsqlClient.Query("select * from rarity where id > $1",
-		func(f persistence.Iterable) error {
+		func(f raizel.Iterable) error {
 			assert.NotNil(t, f)
 			var id int
 			var name string
@@ -83,7 +83,7 @@ func TestIntPgSqlQuery(t *testing.T) {
 func TestIntPgSqlQueryErr(t *testing.T) {
 	assert.NotNil(t, pgsqlClient)
 	err := pgsqlClient.Query("select * from cql.mock m where m.mockField > ?",
-		func(f persistence.Iterable) error {
+		func(f raizel.Iterable) error {
 			assert.NotNil(t, f)
 			return f.Scan()
 		}, 0)

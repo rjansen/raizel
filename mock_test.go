@@ -1,4 +1,4 @@
-package persistence
+package raizel
 
 import (
 	testify "github.com/stretchr/testify/mock"
