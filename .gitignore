@@ -1,4 +1,4 @@
-persistence*coverage*
+raizel*coverage*
 vendor/*/
 *.pprof
 *.test

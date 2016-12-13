@@ -16,10 +16,7 @@ func TestIntMySqlSetup(t *testing.T) {
 	var err error
 	mysqlConfig := &Configuration{
 		Driver:   "mysql",
-		URL:      "tcp(127.0.0.1:3306)/fivecolors",
-		Database: "fivecolors",
-		Username: "fivecolors",
-		Password: "fivecolors",
+		URL:      "fivecolors:fivecolors@tcp(127.0.0.1:3306)/fivecolors",
 		NumConns: 10,
 	}
 	err = Setup(mysqlConfig)

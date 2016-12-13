@@ -65,7 +65,7 @@ func Setup(cfg *Configuration) error {
 		Password: cfg.Password,
 		URL:      cfg.URL,
 	}
-	db, err := sql.Open(datasource.Driver, datasource.DSN())
+	db, err := sql.Open(datasource.Driver, datasource.URL)
 	if err != nil {
 		return fmt.Errorf("sql.OpenErr err=%v", err.Error())
 	}

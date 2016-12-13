@@ -1,9 +1,6 @@
 raizel:
     sql:
         driver: "mysql"
-        url: "tcp(127.0.0.1:3306)/fivecolors"
-        database: "fivecolors"
-        username: "fivecolors"
-        password: "fivecolors"
+        url: "fivecolors:fivecolors@tcp(127.0.0.1:3306)/fivecolors"
         numConns: 10
         

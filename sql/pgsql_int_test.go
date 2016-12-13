@@ -16,10 +16,7 @@ func TestIntPgSqlSetup(t *testing.T) {
 	var err error
 	pgsqlConfig := &Configuration{
 		Driver:   "postgres",
-		URL:      "127.0.0.1:5432/fivecolors?sslmode=disable",
-		Database: "fivecolors",
-		Username: "fivecolors",
-		Password: "fivecolors",
+		URL:      "postgres://fivecolors:fivecolors@127.0.0.1:5432/fivecolors?sslmode=disable",
 		NumConns: 10,
 	}
 	err = Setup(pgsqlConfig)
