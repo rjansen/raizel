@@ -134,9 +134,6 @@ func (q *QuerySupport) Query(query string, iterFunc func(raizel.Iterable) error,
 	if strings.TrimSpace(query) == "" {
 		return errors.New("QueryError[Messages='EmptyCQLQuery']")
 	}
-	if params == nil || len(params) <= 0 {
-		return errors.New("QueryError[Messages='EmptyQueryParameters']")
-	}
 	if iterFunc == nil {
 		return errors.New("QueryError[Messages='NilIterFunc']")
 	}
