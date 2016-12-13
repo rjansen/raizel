@@ -192,14 +192,14 @@
 		{
 			"checksumSHA1": "Z1tyxwqTNXt0+Qonu8ZUaobqYKQ=",
 			"path": "github.com/rjansen/l",
-			"revision": "f224ccd589779ad989b9ea284f3d331a1342a0f1",
-			"revisionTime": "2016-12-12T02:26:55Z"
+			"revision": "12cf3810236b8a26d271478ff35e5d7c290b2176",
+			"revisionTime": "2016-12-13T07:15:31Z"
 		},
 		{
-			"checksumSHA1": "jBhRoe37nmOckEd2WXi51biaGrY=",
+			"checksumSHA1": "W8ZYtAVC0Cj2NxIrCBOlYUSjKD0=",
 			"path": "github.com/rjansen/migi",
-			"revision": "c5d8f47b241b84542969fe57376ecaedd71b890a",
-			"revisionTime": "2016-12-12T01:58:58Z"
+			"revision": "225af7b4330c8a5e3833d78a2b65ce264044af25",
+			"revisionTime": "2016-12-13T07:14:51Z"
 		},
 		{
 			"checksumSHA1": "KEzQv4I7c+tcoTizQM+tavqKsuM=",
