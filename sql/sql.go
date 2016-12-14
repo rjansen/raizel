@@ -126,7 +126,11 @@ func (q *QuerySupport) QueryOne(query string, fetchFunc func(raizel.Fetchable) e
 		return errors.New("identity.QuerySupport.QueryError: Messages='NilFetchFunction")
 	}
 	row := q.db.QueryRow(query, params...)
-	return fetchFunc(row)
+	err := fetchFunc(row)
+	if err == sql.ErrNoRows {
+		return raizel.ErrNotFound
+	}
+	return nil
 }
 
 //Query executes the sql query with the provided parameters and send the results to the provided iter function

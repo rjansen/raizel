@@ -8,6 +8,7 @@ import (
 
 var (
 	persistenceClientKey = 40
+	ErrNotFound          = errors.New("The provided query parameters was not found")
 	ErrInvalidState      = errors.New("The persistence current state is invalid. Setup never called")
 	ErrInvalidClientPool = errors.New("The provided ClientPool is invalid")
 	ErrInvalidContext    = errors.New("The provided Context is invalid")
