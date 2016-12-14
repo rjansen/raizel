@@ -127,8 +127,11 @@ func (q *QuerySupport) QueryOne(query string, fetchFunc func(raizel.Fetchable) e
 	}
 	row := q.db.QueryRow(query, params...)
 	err := fetchFunc(row)
-	if err == sql.ErrNoRows {
-		return raizel.ErrNotFound
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return raizel.ErrNotFound
+		}
+		return err
 	}
 	return nil
 }
