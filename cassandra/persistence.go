@@ -44,7 +44,7 @@ type Session interface {
 type Query interface {
 	// func (q *Query) Bind(v ...interface{}) *Query
 	Consistency(gocql.Consistency) Query
-	Exec() error
+	Exec() (raizel.Result, error)
 	Iter() Iter
 	PageSize(n int) Query
 	Release()

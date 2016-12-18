@@ -202,7 +202,7 @@ func TestUnitExec(t *testing.T) {
 	dbMock.On("Exec", mock.Anything, mock.Anything).Return(mockResult, nil)
 	persistenceClient := NewClient(dbMock)
 	assert.NotNil(t, persistenceClient)
-	err := persistenceClient.Exec("insert into sql.mock values (?, ?)", "mockValue1", "mockValue2")
+	_, err := persistenceClient.Exec("insert into sql.mock values (?, ?)", "mockValue1", "mockValue2")
 	assert.Nil(t, err)
 }
 
@@ -212,6 +212,6 @@ func TestUnitExecErr(t *testing.T) {
 	dbMock.On("Exec", mock.Anything, mock.Anything).Return(nil, errors.New("ExecMockErr"))
 	persistenceClient := NewClient(dbMock)
 	assert.NotNil(t, persistenceClient)
-	err := persistenceClient.Exec("insert into sql.mock values (?)", "mockValue1", "mockValue2")
+	_, err := persistenceClient.Exec("insert into sql.mock values (?)", "mockValue1", "mockValue2")
 	assert.NotNil(t, err)
 }

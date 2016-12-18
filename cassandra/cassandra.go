@@ -53,8 +53,9 @@ func (d *DelegateQuery) Consistency(c gocql.Consistency) Query {
 	return d
 }
 
-func (d *DelegateQuery) Exec() error {
-	return d.query.Exec()
+func (d *DelegateQuery) Exec() (raizel.Result, error) {
+	err := d.query.Exec()
+	return nil, err
 }
 
 func (d *DelegateQuery) Iter() Iter {
@@ -166,26 +167,26 @@ type ExecSupport struct {
 }
 
 //Exec exeutes the command with the provided parameters
-func (i *ExecSupport) Exec(cql string, params ...interface{}) error {
+func (i *ExecSupport) Exec(cql string, params ...interface{}) (raizel.Result, error) {
 	if strings.TrimSpace(cql) == "" {
-		return errors.New("ExecError[Messages='NilCQLQuery']")
+		return nil, errors.New("ExecError[Messages='NilCQLQuery']")
 	}
 	if params == nil || len(params) <= 0 {
-		return errors.New("ExecParametersLenInvalid[Messages='EmptyExecParameters']")
+		return nil, errors.New("ExecParametersLenInvalid[Messages='EmptyExecParameters']")
 	}
-	err := i.session.Query(cql, params...).Exec()
+	_, err := i.session.Query(cql, params...).Exec()
 	if err != nil {
 		l.Error("CQLExecutionFalied",
 			l.String("CQL", cql),
 			l.Struct("Parameters", params),
 		)
-		return err
+		return nil, err
 	}
 	l.Debug("CQLExecutedSuccessfully",
 		l.String("CQL", cql),
 		l.Struct("Parameters", params),
 	)
-	return nil
+	return nil, nil
 }
 
 //NewClient creates a new instance of the CQLClient

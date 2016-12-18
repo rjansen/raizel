@@ -36,6 +36,12 @@ type Iterable interface {
 	Next() bool
 }
 
+// A Result summarizes an executed persistence command.
+type Result interface {
+	LastInsertId() (int64, error)
+	RowsAffected() (int64, error)
+}
+
 //Reader provides the interface for persistence read actions
 type Reader interface {
 	QueryOne(query string, fetchFunc func(Fetchable) error, params ...interface{}) error
@@ -45,7 +51,7 @@ type Reader interface {
 
 //Executor provides cassandra exec supports
 type Executor interface {
-	Exec(command string, params ...interface{}) error
+	Exec(command string, params ...interface{}) (Result, error)
 }
 
 //ClientPool is a contrant for a persistence Client pool
@@ -132,8 +138,11 @@ func ExecuteContext(ctxFunc ContextFunc) error {
 	return ctxFunc(ctx)
 }
 
-//ClientFunc is a functions with context olny parameter
+//ClientFunc is a functions with client olny parameter
 type ClientFunc func(Client) error
+
+//ClientAndArgsFunc is a functions with client and variable args parameters
+type ClientAndArgsFunc func(Client, ...interface{}) error
 
 //Execute gets a Client from the ClientPool and calls the provided function with the Client instance
 func Execute(cliFunc ClientFunc) error {
@@ -143,4 +152,14 @@ func Execute(cliFunc ClientFunc) error {
 		return err
 	}
 	return cliFunc(persistenceClient)
+}
+
+//ExecuteWith gets a Client from the ClientPool and calls the provided function with the Client and the provided arguments
+func ExecuteWith(cliFunc ClientAndArgsFunc, args ...interface{}) error {
+	persistenceClient, err := pool.Get()
+	defer persistenceClient.Close()
+	if err != nil {
+		return err
+	}
+	return cliFunc(persistenceClient, args...)
 }

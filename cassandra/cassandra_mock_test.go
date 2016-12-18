@@ -81,9 +81,13 @@ func (m *QueryMock) Consistency(c gocql.Consistency) Query {
 	return nil
 }
 
-func (m *QueryMock) Exec() error {
+func (m *QueryMock) Exec() (raizel.Result, error) {
 	args := m.Called()
-	return args.Error(0)
+	result := args.Get(0)
+	if result != nil {
+		return result.(raizel.Result), args.Error(1)
+	}
+	return nil, args.Error(1)
 }
 
 func (m *QueryMock) Iter() Iter {

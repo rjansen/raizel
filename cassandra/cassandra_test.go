@@ -199,26 +199,26 @@ func TestUnitQueryExecErr(t *testing.T) {
 
 func TestUnitExec(t *testing.T) {
 	mockQuery := NewQueryMock()
-	mockQuery.On("Exec").Return(nil)
+	mockQuery.On("Exec").Return(nil, nil)
 	sessionMock := NewSessionMock()
 	sessionMock.On("Close")
 	sessionMock.On("Closed").Return(false)
 	sessionMock.On("Query", mock.Anything, mock.Anything).Return(mockQuery)
 	persistenceClient := NewClient(sessionMock)
 	assert.NotNil(t, persistenceClient)
-	err := persistenceClient.Exec("insert into cql.mock values (?)", "mockValue1", "mockValue2")
+	_, err := persistenceClient.Exec("insert into cql.mock values (?)", "mockValue1", "mockValue2")
 	assert.Nil(t, err)
 }
 
 func TestUnitExecErr(t *testing.T) {
 	mockQuery := NewQueryMock()
-	mockQuery.On("Exec").Return(errors.New("ExecMockErr"))
+	mockQuery.On("Exec").Return(nil, errors.New("ExecMockErr"))
 	sessionMock := NewSessionMock()
 	sessionMock.On("Close")
 	sessionMock.On("Closed").Return(false)
 	sessionMock.On("Query", mock.Anything, mock.Anything).Return(mockQuery)
 	persistenceClient := NewClient(sessionMock)
 	assert.NotNil(t, persistenceClient)
-	err := persistenceClient.Exec("insert into cql.mock values (?, ?)", "mockValue", "anotherMockValue")
+	_, err := persistenceClient.Exec("insert into cql.mock values (?, ?)", "mockValue", "anotherMockValue")
 	assert.NotNil(t, err)
 }

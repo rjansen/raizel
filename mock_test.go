@@ -52,9 +52,13 @@ type ExecutorMock struct {
 	testify.Mock
 }
 
-func (m *ExecutorMock) Exec(cql string, params ...interface{}) error {
+func (m *ExecutorMock) Exec(cql string, params ...interface{}) (Result, error) {
 	args := m.Called(cql, params)
-	return args.Error(0)
+	result := args.Get(0)
+	if result != nil {
+		return result.(Result), args.Error(1)
+	}
+	return nil, args.Error(1)
 }
 
 type ClientMock struct {
@@ -71,9 +75,13 @@ func (m *ClientMock) Query(query string, iterFunc func(Iterable) error, params .
 	return args.Error(0)
 }
 
-func (m *ClientMock) Exec(cql string, params ...interface{}) error {
+func (m *ClientMock) Exec(cql string, params ...interface{}) (Result, error) {
 	args := m.Called(cql, params)
-	return args.Error(0)
+	result := args.Get(0)
+	if result != nil {
+		return result.(Result), args.Error(1)
+	}
+	return nil, args.Error(1)
 }
 
 func (m *ClientMock) Close() error {

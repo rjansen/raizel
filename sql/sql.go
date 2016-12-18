@@ -157,12 +157,12 @@ type ExecSupport struct {
 }
 
 //Exec exeutes the sql command with the provided parameters
-func (i *ExecSupport) Exec(sql string, params ...interface{}) error {
+func (i *ExecSupport) Exec(sql string, params ...interface{}) (raizel.Result, error) {
 	if strings.TrimSpace(sql) == "" {
-		return errors.New("sql.ExecError[Messages='NilSQLQuery']")
+		return nil, errors.New("sql.ExecError[Messages='NilSQLQuery']")
 	}
 	if params == nil || len(params) <= 0 {
-		return errors.New("ExecParametersLenInvalid[Messages='EmptyExecParameters']")
+		return nil, errors.New("ExecParametersLenInvalid[Messages='EmptyExecParameters']")
 	}
 	result, err := i.db.Exec(sql, params...)
 	if err != nil {
@@ -170,14 +170,14 @@ func (i *ExecSupport) Exec(sql string, params ...interface{}) error {
 			l.String("SQL", sql),
 			l.Struct("Parameters", params),
 		)
-		return err
+		return nil, err
 	}
 	l.Debug("SQLExecutedSuccessfully",
 		l.String("SQL", sql),
 		l.Struct("Parameters", params),
 		l.Struct("Result", result),
 	)
-	return nil
+	return result, nil
 }
 
 //NewClient creates a new instance of the SQLClient
