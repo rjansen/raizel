@@ -1,6 +1,7 @@
 .DS_Store
-
-raizel*coverage*
-vendor/*/
+on/
+vendor/
+tmp/
+*coverage*
 *.pprof
 *.test

@@ -3,15 +3,17 @@ package sql
 import (
 	"database/sql"
 	"errors"
+	"testing"
+
 	"github.com/rjansen/l"
+	"github.com/rjansen/l/zap"
 	"github.com/rjansen/raizel"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"testing"
 )
 
 func init() {
-	if err := l.Setup(&l.Configuration{}); err != nil {
+	if err := zap.Setup(&l.Configuration{}); err != nil {
 		panic(err)
 	}
 }

@@ -2,16 +2,27 @@ package cassandra
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/gocql/gocql"
 	"github.com/rjansen/l"
+	"github.com/rjansen/l/zap"
 	"github.com/rjansen/raizel"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"testing"
+)
+
+var (
+	pool              raizel.ClientPool
+	persistenceClient raizel.Client
+	setted            = false
+	key1              = "8b06603b-9b0d-4e8c-8aae-10f988639fe6"
+	expires           = 60
+	testConfig        *Configuration
 )
 
 func init() {
-	if err := l.Setup(&l.Configuration{}); err != nil {
+	if err := zap.Setup(&l.Configuration{}); err != nil {
 		panic(err)
 	}
 }

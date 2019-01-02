@@ -1,10 +1,13 @@
+// +build integration
+
 package sql
 
 import (
+	"testing"
+
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/rjansen/raizel"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 var (

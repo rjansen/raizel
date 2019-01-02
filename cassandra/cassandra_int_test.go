@@ -1,12 +1,14 @@
+// +build integration
+
 package cassandra
 
 import (
-	"github.com/rjansen/l"
+	"os"
+	"testing"
+
 	"github.com/rjansen/migi"
 	"github.com/rjansen/raizel"
 	"github.com/stretchr/testify/assert"
-	"os"
-	"testing"
 )
 
 var (
@@ -79,7 +81,6 @@ func TestIntQuery(t *testing.T) {
 	err := persistenceClient.Query("select * from login where username in (?, ?)",
 		func(f raizel.Iterable) error {
 			assert.NotNil(t, f)
-			l.Infof("Iterable=%+v", f)
 			records := 0
 			for f.Next() {
 				fetchErr := f.Scan(nil, nil, nil, nil)

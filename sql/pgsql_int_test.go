@@ -1,10 +1,13 @@
+// +build integration
+
 package sql
 
 import (
+	"testing"
+
 	_ "github.com/lib/pq"
 	"github.com/rjansen/raizel"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 var (
