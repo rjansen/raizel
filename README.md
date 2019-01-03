@@ -1,4 +1,4 @@
-# raizel [![Build Status](https://travis-ci.org/rjansen/raizel.svg?branch=master)](https://travis-ci.org/rjansen/raizel) [![Coverage Status](https://codecov.io/gh/rjansen/raizel/branch/master/graph/badge.svg)](https://codecov.io/gh/rjansen/raizel)
+# raizel [![Build Status](https://travis-ci.org/rjansen/raizel.svg?branch=master)](https://travis-ci.org/rjansen/raizel) [![Coverage Status](https://codecov.io/gh/rjansen/raizel/branch/master/graph/badge.svg)](https://codecov.io/gh/rjansen/raizel) [![Go Report Card](https://goreportcard.com/badge/github.com/rjansen/raizel)](https://goreportcard.com/report/github.com/rjansen/raizel)
 
 A persistence helper library
 
