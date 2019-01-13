@@ -18,14 +18,29 @@ type DocumentRef interface {
 	delegate() *firestore.DocumentRef
 }
 
+type CollectionRef interface {
+	Query
+	delegate() *firestore.CollectionRef
+}
+
 type DocumentSnapshot interface {
 	DataTo(interface{}) error
 	Exists() bool
 }
 
+type DocumentIterator interface {
+	GetAll() ([]DocumentSnapshot, error)
+}
+
+type Query interface {
+	Documents(context.Context) DocumentIterator
+	Where(string, string, interface{}) Query
+}
+
 type Client interface {
 	Close() error
 	Doc(string) DocumentRef
+	Collection(string) CollectionRef
 	GetAll(context.Context, ...DocumentRef) ([]DocumentSnapshot, error)
 }
 
@@ -69,15 +84,73 @@ func (doc *documentRef) Delete(ctx context.Context) error {
 	return err
 }
 
+type documentIterator struct {
+	*firestore.DocumentIterator
+}
+
+func (iter *documentIterator) GetAll() ([]DocumentSnapshot, error) {
+	docs, err := iter.DocumentIterator.GetAll()
+	if err != nil {
+		return nil, err
+	}
+	delegates := make([]DocumentSnapshot, len(docs))
+	for index, doc := range docs {
+		delegates[index] = doc
+	}
+	return delegates, nil
+}
+
+type query struct {
+	firestore.Query
+}
+
+func (q query) Where(path, op string, value interface{}) Query {
+	return query{
+		Query: q.Query.Where(path, op, value),
+	}
+}
+
+func (q query) Documents(ctx context.Context) DocumentIterator {
+	return &documentIterator{
+		DocumentIterator: q.Query.Documents(ctx),
+	}
+}
+
+type collectionRef struct {
+	*firestore.CollectionRef
+}
+
+func (coll *collectionRef) delegate() *firestore.CollectionRef {
+	return coll.CollectionRef
+}
+
+func (coll *collectionRef) Where(path, op string, value interface{}) Query {
+	return query{
+		Query: coll.CollectionRef.Where(path, op, value),
+	}
+}
+
+func (coll *collectionRef) Documents(ctx context.Context) DocumentIterator {
+	return &documentIterator{
+		DocumentIterator: coll.CollectionRef.Documents(ctx),
+	}
+}
+
 type client struct {
 	*firestore.Client
 }
 
 func (c *client) Doc(path string) DocumentRef {
-	fref := c.Client.Doc(path)
-	return &documentRef{fref}
+	return &documentRef{
+		DocumentRef: c.Client.Doc(path),
+	}
 }
 
+func (c *client) Collection(path string) CollectionRef {
+	return &collectionRef{
+		CollectionRef: c.Client.Collection(path),
+	}
+}
 func (c *client) GetAll(ctx context.Context, refs ...DocumentRef) ([]DocumentSnapshot, error) {
 	frefs := make([]*firestore.DocumentRef, len(refs))
 	for index, ref := range refs {

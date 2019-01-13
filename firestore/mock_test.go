@@ -74,12 +74,12 @@ func newClientMock() *clientMock {
 	return new(clientMock)
 }
 
-func (mock clientMock) Close() error {
+func (mock *clientMock) Close() error {
 	args := mock.Called()
 	return args.Error(0)
 }
 
-func (mock clientMock) Doc(path string) DocumentRef {
+func (mock *clientMock) Doc(path string) DocumentRef {
 	var (
 		args   = mock.Called(path)
 		result = args.Get(0)
@@ -90,7 +90,7 @@ func (mock clientMock) Doc(path string) DocumentRef {
 	return result.(DocumentRef)
 }
 
-func (mock clientMock) Collection(path string) DocumentRef {
+func (mock *clientMock) Collection(path string) CollectionRef {
 	var (
 		args   = mock.Called(path)
 		result = args.Get(0)
@@ -98,10 +98,10 @@ func (mock clientMock) Collection(path string) DocumentRef {
 	if result == nil {
 		return nil
 	}
-	return result.(DocumentRef)
+	return result.(CollectionRef)
 }
 
-func (mock clientMock) GetAll(ctx context.Context, refs ...DocumentRef) ([]DocumentSnapshot, error) {
+func (mock *clientMock) GetAll(ctx context.Context, refs ...DocumentRef) ([]DocumentSnapshot, error) {
 	var (
 		args   = mock.Called(ctx, refs)
 		result = args.Get(0)
