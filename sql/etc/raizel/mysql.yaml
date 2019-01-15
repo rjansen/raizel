@@ -1,6 +1,0 @@
-raizel:
-    sql:
-        driver: "mysql"
-        url: "fivecolors:fivecolors@tcp(127.0.0.1:3306)/fivecolors"
-        numConns: 10
-        

@@ -58,6 +58,6 @@ func (*repository) Delete(tree yggdrasil.Tree, key raizel.EntityKey) error {
 }
 
 func (*repository) Close(tree yggdrasil.Tree) error {
-	var client = MustReference(tree)
+	client := MustReference(tree)
 	return client.Close()
 }

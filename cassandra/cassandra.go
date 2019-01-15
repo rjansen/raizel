@@ -25,6 +25,7 @@ type Query interface {
 	PageSize(int) Query
 	Release()
 	String() string
+	delegate() *gocql.Query
 }
 
 type Iter interface {
@@ -68,4 +69,8 @@ func (delegate *query) PageSize(size int) Query {
 	return &query{
 		Query: delegate.Query.PageSize(size),
 	}
+}
+
+func (delegate *query) delegate() *gocql.Query {
+	return delegate.Query
 }

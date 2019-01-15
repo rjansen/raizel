@@ -96,6 +96,7 @@ func TestQuery(test *testing.T) {
 				require.NotNil(t, session, "session instance")
 				query := session.Query(scenario.cql, scenario.arguments...)
 				require.NotNil(t, query, "query invalid instance")
+				require.NotNil(t, query.delegate(), "querydelegate invalid instance")
 
 				query = query.Consistency(gocql.Any)
 				query = query.PageSize(100)

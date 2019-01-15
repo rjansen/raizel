@@ -91,6 +91,14 @@ func (mock *queryMock) String() string {
 	return args.String(0)
 }
 
+func (mock *queryMock) delegate() *gocql.Query {
+	var (
+		args   = mock.Called()
+		result = args.Get(0)
+	)
+	return result.(*gocql.Query)
+}
+
 type iterMock struct {
 	mock.Mock
 }

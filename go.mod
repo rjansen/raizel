@@ -14,6 +14,7 @@ require (
 	github.com/rjansen/l v0.0.0-20170712015905-eadde628b6c8
 	github.com/rjansen/migi v0.0.0-20170712020249-38d6615f213c
 	github.com/rjansen/yggdrasil v0.0.0-20190103013159-f33b3f0f790f
+	github.com/scylladb/gocqlx v1.1.0
 	github.com/spf13/viper v1.3.1 // indirect
 	github.com/stretchr/objx v0.1.1 // indirect
 	github.com/stretchr/testify v1.2.2

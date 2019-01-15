@@ -17,6 +17,7 @@ github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMo
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
 github.com/go-sql-driver/mysql v1.4.1 h1:g24URVg0OFbNUTx9qqY1IRZ9D9z3iPyi5zKhQZpNwpA=
 github.com/go-sql-driver/mysql v1.4.1/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
+github.com/gocql/gocql v0.0.0-20180530083731-3c37daec2f4d/go.mod h1:4Fw1eo5iaEhDUs8XyuhSVCVy52Jq3L+/3GJgYkwc+/0=
 github.com/gocql/gocql v0.0.0-20181124151448-70385f88b28b h1:dnUw9Ih14dCKzbtZxm+pwQRYIb+9ypiwtZgsCQN4zmg=
 github.com/gocql/gocql v0.0.0-20181124151448-70385f88b28b/go.mod h1:4Fw1eo5iaEhDUs8XyuhSVCVy52Jq3L+/3GJgYkwc+/0=
 github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b/go.mod h1:SBH7ygxi8pfUlaOkMMuAQtPIUF8ecWP5IEl/CR7VP2Q=
@@ -62,6 +63,8 @@ github.com/rjansen/migi v0.0.0-20170712020249-38d6615f213c h1:oPICD0JPBZ0FwRfZPM
 github.com/rjansen/migi v0.0.0-20170712020249-38d6615f213c/go.mod h1:HP9VRtAyrHXFobWFA9qZaVxtPj3l6lOzGKQKhydbtP8=
 github.com/rjansen/yggdrasil v0.0.0-20190103013159-f33b3f0f790f h1:iHFHFSCiVjxQh9cEmxbMHR/4mu1/1dsTnF6dnr/CdyY=
 github.com/rjansen/yggdrasil v0.0.0-20190103013159-f33b3f0f790f/go.mod h1:yntPro4xwM2GbG/29nbbLe7lK+jnX892RvS/MuM00I0=
+github.com/scylladb/gocqlx v1.1.0 h1:dDtMdVfO7AO7BGpfgTa1L+n1dbeeyRhyphVnEq+rgZc=
+github.com/scylladb/gocqlx v1.1.0/go.mod h1:TbIAUQ9ZKrWXN3hEasBKKtyq97erOT0z+RU6sOk1b44=
 github.com/spf13/afero v1.1.2 h1:m8/z1t7/fwjysjQRYbP0RD+bUIF/8tJwPdEZsI83ACI=
 github.com/spf13/afero v1.1.2/go.mod h1:j4pytiNVoe2o6bmDsKpLACNPDBIoEAkihy7loJ1B0CQ=
 github.com/spf13/cast v1.3.0 h1:oget//CVOEoFewqQxwr0Ej5yjygnqGkvggSE/gB35Q8=
