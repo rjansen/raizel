@@ -210,7 +210,7 @@ func (scenario *testGetDocumentRef) setup(t *testing.T) {
 			[]interface{}{
 				&pb.BatchGetDocumentsResponse{
 					Result: &pb.BatchGetDocumentsResponse_Found{
-						&pb.Document{
+						Found: &pb.Document{
 							Name:       scenario.path,
 							CreateTime: aTimestamp,
 							UpdateTime: aTimestamp,
@@ -288,7 +288,7 @@ func (scenario *testGetAllDocumentRef) setup(t *testing.T) {
 		for index, path := range scenario.paths {
 			mockResults[index] = &pb.BatchGetDocumentsResponse{
 				Result: &pb.BatchGetDocumentsResponse_Found{
-					&pb.Document{
+					Found: &pb.Document{
 						Name:       path,
 						CreateTime: aTimestamp,
 						UpdateTime: aTimestamp,
