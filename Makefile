@@ -137,3 +137,6 @@ docker.%:
 	@echo "$(REPO)@$(BUILD) docker.$*"
 	@docker run --rm --name $(NAME)-run -u $(shell id -u):$(shell id -g) \
     		    -v `pwd`:/go/src/$(REPO) $(DOCKER_NAME) $*
+
+include Makefile.postgres
+include Makefile.firestore

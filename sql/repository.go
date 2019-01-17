@@ -1,37 +1,38 @@
 package sql
 
 import (
-	sqlbuilder "github.com/huandu/go-sqlbuilder"
 	"github.com/rjansen/raizel"
 	"github.com/rjansen/yggdrasil"
 )
 
-type repository struct{}
-
-func NewRepository() *repository {
-	return new(repository)
+type repository struct {
+	mapper Mapper
 }
 
-func (*repository) Get(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.Entity) error {
+func NewRepository(mapper Mapper) repository {
+	return repository{mapper: mapper}
+}
+
+func (repository repository) Get(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.Entity) error {
 	var (
-		db           = MustReference(tree)
-		entityStruct = sqlbuilder.NewStruct(entity)
-		builder      = entityStruct.SelectFrom("entity")
-		sql, args    = builder.Where(
-			builder.E(key.GetEntityName(), key.GetKeyValue()),
+		db        = MustReference(tree)
+		sqlStruct = repository.mapper.Get(key.EntityName())
+		builder   = sqlStruct.SelectFrom(key.EntityName())
+		sql, args = builder.Where(
+			builder.E(key.Name(), key.Value()),
 		).Build()
 		row = db.QueryRow(sql, args...)
 	)
-	return row.Scan(entityStruct.Addr(entity))
+	return row.Scan(sqlStruct.Addr(entity))
 }
 
-func (*repository) Set(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.Entity) error {
+func (repository repository) Set(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.Entity) error {
 	var (
-		db           = MustReference(tree)
-		entityStruct = sqlbuilder.NewStruct(entity)
-		builder      = entityStruct.Update("entity", entity)
-		sql, args    = builder.Where(
-			builder.E(key.GetEntityName(), key.GetKeyValue()),
+		db        = MustReference(tree)
+		sqlStruct = repository.mapper.Get(key.EntityName())
+		builder   = sqlStruct.Update(key.EntityName(), entity)
+		sql, args = builder.Where(
+			builder.E(key.Name(), key.Value()),
 		).Build()
 		_, err = db.Exec(sql, args...)
 	)
@@ -41,13 +42,13 @@ func (*repository) Set(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.
 	return nil
 }
 
-func (*repository) Delete(tree yggdrasil.Tree, key raizel.EntityKey) error {
+func (repository repository) Delete(tree yggdrasil.Tree, key raizel.EntityKey) error {
 	var (
-		db           = MustReference(tree)
-		entityStruct = sqlbuilder.NewStruct(key)
-		builder      = entityStruct.DeleteFrom("entity")
-		sql, args    = builder.Where(
-			builder.E(key.GetEntityName(), key.GetKeyValue()),
+		db        = MustReference(tree)
+		sqlStruct = repository.mapper.Get(key.EntityName())
+		builder   = sqlStruct.DeleteFrom(key.EntityName())
+		sql, args = builder.Where(
+			builder.E(key.Name(), key.Value()),
 		).Build()
 		_, err = db.Exec(sql, args...)
 	)
@@ -57,7 +58,7 @@ func (*repository) Delete(tree yggdrasil.Tree, key raizel.EntityKey) error {
 	return nil
 }
 
-func (*repository) Close(tree yggdrasil.Tree) error {
+func (repository) Close(tree yggdrasil.Tree) error {
 	client := MustReference(tree)
 	return client.Close()
 }

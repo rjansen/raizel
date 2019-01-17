@@ -1,77 +1,71 @@
+// +build integration
+
 package sql
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"testing"
 
 	sqlbuilder "github.com/huandu/go-sqlbuilder"
+	_ "github.com/lib/pq"
 	"github.com/rjansen/raizel"
 	"github.com/rjansen/yggdrasil"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewRepository(test *testing.T) {
-	repository := NewRepository(NewMapperBuilder().NewMapper())
-	require.NotNil(test, repository, "invalid repository instance")
-}
-
-type testRepositoryGet struct {
+type testRepositoryPostgresGet struct {
 	name   string
 	tree   yggdrasil.Tree
-	row    *rowMock
-	db     *dbMock
 	mapper Mapper
 	key    raizel.EntityKey
 	result raizel.Entity
 	err    error
 }
 
-func (scenario *testRepositoryGet) setup(t *testing.T) {
+func (scenario *testRepositoryPostgresGet) setup(t *testing.T) {
 	var (
-		row   = newRowMock()
-		db    = newDBMock()
-		roots = yggdrasil.NewRoots()
-		err   = Register(&roots, db)
+		driver          = "postgres"
+		dsn             = "postgres://postgres:@127.0.0.1:5432/postgres?sslmode=disable"
+		sqlDB, errSqlDB = sql.Open(driver, dsn)
+		db, errDB       = newDB(sqlDB)
+		roots           = yggdrasil.NewRoots()
+		err             = Register(&roots, db)
 	)
-	require.NotNil(t, db, "mock db instance")
-	require.NotNil(t, roots, "roots instance")
+	require.Nil(t, errSqlDB, "sqlopen error")
+	require.Nil(t, errDB, "newdb error")
 	require.Nil(t, err, "register db err")
+	require.NotNil(t, roots, "roots instance")
+	require.NotNil(t, db, "db instance")
 
-	row.On("Scan", mock.Anything).Return(scenario.err)
-	db.On("QueryRow", mock.AnythingOfType("string"), mock.Anything).Return(row)
-	db.On("Close").Return(nil)
-
-	scenario.row = row
-	scenario.db = db
 	scenario.tree = roots.NewTreeDefault()
 }
 
-func TestRepositoryGet(test *testing.T) {
-	scenarios := []testRepositoryGet{
+func TestRepositoryPostgresGet(test *testing.T) {
+	scenarios := []testRepositoryPostgresGet{
 		{
 			name: "Get entity",
 			key: entityKeyMock{
-				table: "entity_table",
+				table: "entity_mock",
 				name:  "id",
-				value: "identifier",
+				value: 111,
 			},
 			result: &entityMock{},
 			mapper: NewMapperBuilder().
-				Set("entity_table", sqlbuilder.NewStruct(new(entityMock))).
+				Set("entity_mock", sqlbuilder.NewStruct(new(entityMock))).
 				NewMapper(),
 		},
 		{
 			name: "Error when try to Get an entity",
 			key: entityKeyMock{
-				table: "entity_table",
+				table: "entity_mock",
 				name:  "id",
-				value: "identifier",
+				value: 222,
 			},
 			result: &entityMock{},
 			mapper: NewMapperBuilder().
-				Set("entity_table", sqlbuilder.NewStruct(new(entityMock))).
+				Set("entity_mock", sqlbuilder.NewStruct(new(entityMock))).
 				NewMapper(),
 			err: errors.New("errMock"),
 		},
@@ -88,13 +82,12 @@ func TestRepositoryGet(test *testing.T) {
 				require.Equal(t, scenario.err, err, "get error")
 				err = repository.Close(scenario.tree)
 				require.Nil(t, err, "close error")
-				scenario.db.AssertExpectations(t)
-				scenario.row.AssertExpectations(t)
 			},
 		)
 	}
 }
 
+/*
 type testRepositorySet struct {
 	name   string
 	tree   yggdrasil.Tree
@@ -249,3 +242,4 @@ func TestRepositoryDelete(test *testing.T) {
 		)
 	}
 }
+*/

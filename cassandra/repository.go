@@ -15,10 +15,10 @@ func NewRepository() *repository {
 func (*repository) Get(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.Entity) error {
 	var (
 		session = MustReference(tree)
-		cql, _  = qb.Select(key.GetEntityName()).Columns(
+		cql, _  = qb.Select(key.EntityName()).Columns(
 			"id", "name", "age", "created_at", "updated_at",
 		).Where(
-			qb.Eq(key.GetEntityName()),
+			qb.Eq(key.Name()),
 		).ToCql()
 		query = session.Query(cql)
 		// queryx = gocqlx.Query(query.delegate(), args).BindStruct(entity)
@@ -29,7 +29,7 @@ func (*repository) Get(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.
 func (*repository) Set(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.Entity) error {
 	var (
 		session = MustReference(tree)
-		cql, _  = qb.Insert(key.GetEntityName()).Columns(
+		cql, _  = qb.Insert(key.EntityName()).Columns(
 			"id", "name", "age", "created_at", "updated_at",
 		).ToCql()
 		query = session.Query(cql)
@@ -41,8 +41,8 @@ func (*repository) Set(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.
 func (*repository) Delete(tree yggdrasil.Tree, key raizel.EntityKey) error {
 	var (
 		session = MustReference(tree)
-		cql, _  = qb.Delete(key.GetEntityName()).Where(
-			qb.Eq(key.GetEntityName()),
+		cql, _  = qb.Delete(key.EntityName()).Where(
+			qb.Eq(key.Name()),
 		).ToCql()
 		query = session.Query(cql)
 		// queryx = gocqlx.Query(query.delegate(), args).BindStruct(entity)

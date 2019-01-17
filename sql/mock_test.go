@@ -1,8 +1,36 @@
 package sql
 
 import (
+	"time"
+
 	"github.com/stretchr/testify/mock"
 )
+
+type entityMock struct {
+	ID        string    `db:"id"`
+	Name      string    `db:"name"`
+	Age       int       `db:"age"`
+	CreatedAt time.Time `db:"createdAt"`
+	UpdatedAt time.Time `db:"updatedAt"`
+}
+
+type entityKeyMock struct {
+	table string
+	name  string
+	value interface{}
+}
+
+func (k entityKeyMock) Name() string {
+	return k.name
+}
+
+func (k entityKeyMock) Value() interface{} {
+	return k.value
+}
+
+func (k entityKeyMock) EntityName() string {
+	return k.table
+}
 
 func newDBMock() *dbMock {
 	return new(dbMock)

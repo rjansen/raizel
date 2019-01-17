@@ -3,8 +3,9 @@ package raizel
 import "github.com/rjansen/yggdrasil"
 
 type EntityKey interface {
-	GetKeyValue() interface{}
-	GetEntityName() string
+	EntityName() string
+	Value() interface{}
+	Name() string
 }
 
 type Entity interface{}
@@ -14,4 +15,30 @@ type Repository interface {
 	Set(yggdrasil.Tree, EntityKey, Entity) error
 	Delete(yggdrasil.Tree, EntityKey) error
 	Close(yggdrasil.Tree) error
+}
+
+type dynamicEntityKey struct {
+	entityName string
+	name       string
+	value      interface{}
+}
+
+func (key dynamicEntityKey) EntityName() string {
+	return key.entityName
+}
+
+func (key dynamicEntityKey) Name() string {
+	return key.name
+}
+
+func (key dynamicEntityKey) Value() interface{} {
+	return key.value
+}
+
+func NewDynamicKey(entityName, keyName string, keyValue interface{}) EntityKey {
+	return dynamicEntityKey{
+		entityName: entityName,
+		name:       keyName,
+		value:      keyValue,
+	}
 }

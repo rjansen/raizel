@@ -1,0 +1,8 @@
+.PHONY: firestore_run
+firestore_run:
+	@echo "$(REPO) firestore_run"
+
+.PHONY: firestore_kill
+firestore_kill:
+	@echo "$(REPO) firestore_kill"
+

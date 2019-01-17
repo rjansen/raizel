@@ -2,6 +2,7 @@ package firestore
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/rjansen/raizel"
 	"github.com/rjansen/yggdrasil"
@@ -13,10 +14,14 @@ func NewRepository() raizel.Repository {
 	return new(repository)
 }
 
+func entityDocRef(key raizel.EntityKey) string {
+	return fmt.Sprintf("%s/%s", key.EntityName(), key.Value())
+}
+
 func (*repository) Get(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.Entity) error {
 	var (
 		client   = MustReference(tree)
-		ref      = client.Doc(key.GetEntityName())
+		ref      = client.Doc(entityDocRef(key))
 		doc, err = ref.Get(context.Background())
 	)
 	if err != nil {
@@ -28,7 +33,7 @@ func (*repository) Get(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.
 func (*repository) Set(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.Entity) error {
 	var (
 		client = MustReference(tree)
-		ref    = client.Doc(key.GetEntityName())
+		ref    = client.Doc(entityDocRef(key))
 	)
 	return ref.Set(context.Background(), entity)
 }
@@ -36,7 +41,7 @@ func (*repository) Set(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.
 func (*repository) Delete(tree yggdrasil.Tree, key raizel.EntityKey) error {
 	var (
 		client = MustReference(tree)
-		ref    = client.Doc(key.GetEntityName())
+		ref    = client.Doc(entityDocRef(key))
 	)
 	return ref.Delete(context.Background())
 }

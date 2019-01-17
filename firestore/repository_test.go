@@ -22,15 +22,20 @@ type testEntity struct {
 
 type testEntityKey struct {
 	collection string
-	id         string
+	name       string
+	value      interface{}
 }
 
-func (k testEntityKey) GetKeyValue() interface{} {
-	return k.id
+func (k testEntityKey) Name() string {
+	return k.name
 }
 
-func (k testEntityKey) GetEntityName() string {
-	return fmt.Sprintf("%s/%s", k.collection, k.id)
+func (k testEntityKey) Value() interface{} {
+	return k.value
+}
+
+func (k testEntityKey) EntityName() string {
+	return k.collection
 }
 
 func TestNewRepository(test *testing.T) {
@@ -80,7 +85,8 @@ func TestRepositoryGet(test *testing.T) {
 			name: "Get entity",
 			key: testEntityKey{
 				collection: "mymockcollection",
-				id:         "identifier",
+				name:       "id",
+				value:      "identifier",
 			},
 			result: testEntity{},
 		},
@@ -88,7 +94,8 @@ func TestRepositoryGet(test *testing.T) {
 			name: "Error when try to Get an entity",
 			key: testEntityKey{
 				collection: "mymockcollection",
-				id:         "identifier",
+				name:       "id",
+				value:      "identifier",
 			},
 			err: errors.New("errMock"),
 		},
@@ -153,7 +160,8 @@ func TestRepositorySet(test *testing.T) {
 			name: "Set entity",
 			key: testEntityKey{
 				collection: "mymockcollection",
-				id:         "identifier",
+				name:       "id",
+				value:      "identifier",
 			},
 			data: testEntity{},
 		},
@@ -161,7 +169,8 @@ func TestRepositorySet(test *testing.T) {
 			name: "Error when try to Set an entity",
 			key: testEntityKey{
 				collection: "mymockcollection",
-				id:         "identifier",
+				name:       "id",
+				value:      "identifier",
 			},
 			err: errors.New("errMock"),
 		},
@@ -220,14 +229,16 @@ func TestRepositoryDelete(test *testing.T) {
 			name: "Delete entity",
 			key: testEntityKey{
 				collection: "mymockcollection",
-				id:         "identifier",
+				name:       "id",
+				value:      "identifier",
 			},
 		},
 		{
 			name: "Error when try to Delete an entity",
 			key: testEntityKey{
 				collection: "mymockcollection",
-				id:         "identifier",
+				name:       "id",
+				value:      "identifier",
 			},
 			err: errors.New("errMock"),
 		},

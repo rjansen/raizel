@@ -21,16 +21,21 @@ type testEntity struct {
 }
 
 type testEntityKey struct {
-	pkField string
-	id      string
+	entityName string
+	name       string
+	value      interface{}
 }
 
-func (k testEntityKey) GetKeyValue() interface{} {
-	return k.id
+func (k testEntityKey) EntityName() string {
+	return k.entityName
 }
 
-func (k testEntityKey) GetEntityName() string {
-	return k.pkField
+func (k testEntityKey) Value() interface{} {
+	return k.value
+}
+
+func (k testEntityKey) Name() string {
+	return k.name
 }
 
 func TestNewRepository(test *testing.T) {
@@ -74,16 +79,18 @@ func TestRepositoryGet(test *testing.T) {
 		{
 			name: "Get entity",
 			key: testEntityKey{
-				pkField: "id",
-				id:      "identifier",
+				entityName: "testEntityKey",
+				name:       "id",
+				value:      "identifier",
 			},
 			result: &testEntity{},
 		},
 		{
 			name: "Error when try to Get an entity",
 			key: testEntityKey{
-				pkField: "id",
-				id:      "identifier",
+				entityName: "testEntityKey",
+				name:       "id",
+				value:      "identifier",
 			},
 			result: &testEntity{},
 			err:    errors.New("errMock"),
@@ -144,16 +151,18 @@ func TestRepositorySet(test *testing.T) {
 		{
 			name: "Set entity",
 			key: testEntityKey{
-				pkField: "id",
-				id:      "identifier",
+				entityName: "testEntityKey",
+				name:       "id",
+				value:      "identifier",
 			},
 			data: &testEntity{},
 		},
 		{
 			name: "Error when try to Set an entity",
 			key: testEntityKey{
-				pkField: "id",
-				id:      "identifier",
+				entityName: "testEntityKey",
+				name:       "id",
+				value:      "identifier",
 			},
 			data: &testEntity{},
 			err:  errors.New("errMock"),
@@ -214,15 +223,17 @@ func TestRepositoryDelete(test *testing.T) {
 		{
 			name: "Delete entity",
 			key: testEntityKey{
-				pkField: "id",
-				id:      "identifier",
+				entityName: "testEntityKey",
+				name:       "id",
+				value:      "identifier",
 			},
 		},
 		{
 			name: "Error when try to Delete an entity",
 			key: testEntityKey{
-				pkField: "id",
-				id:      "identifier",
+				entityName: "testEntityKey",
+				name:       "id",
+				value:      "identifier",
 			},
 			err: errors.New("errMock"),
 		},
