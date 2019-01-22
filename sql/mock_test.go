@@ -1,17 +1,42 @@
 package sql
 
 import (
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/stretchr/testify/mock"
 )
 
+type dynamicData map[string]interface{}
+
+func (d dynamicData) Value() (driver.Value, error) {
+	j, err := json.Marshal(d)
+	return j, err
+}
+
+func (d *dynamicData) Scan(src interface{}) error {
+	source, ok := src.([]byte)
+	if !ok {
+		return errors.New("err_invalid_dbtype: != []byte")
+	}
+
+	err := json.Unmarshal(source, d)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 type entityMock struct {
-	ID        string    `db:"id"`
-	Name      string    `db:"name"`
-	Age       int       `db:"age"`
-	CreatedAt time.Time `db:"createdAt"`
-	UpdatedAt time.Time `db:"updatedAt"`
+	ID        int         `db:"id"`
+	Name      string      `db:"name"`
+	Age       int         `db:"age"`
+	Data      dynamicData `db:"data"`
+	Deleted   bool        `db:"deleted"`
+	CreatedAt time.Time   `db:"created_at"`
+	UpdatedAt time.Time   `db:"updated_at"`
 }
 
 type entityKeyMock struct {

@@ -23,6 +23,12 @@ install.gvm:
 	which gvm || \
 		curl -s -S -L https://raw.githubusercontent.com/moovweb/gvm/master/binscripts/gvm-installer | bash
 
+.PHONY: setup.gvm
+setup.gvm:
+	@echo "$(REPO) setup.gvm"
+	gvm install go$(GOVERSION) -B
+	@echo -e 'Please run:\n `gvm use go$(GOVERSION) --default`'
+
 .PHONY: install
 install: deps
 	@echo "$(REPO) install"
@@ -61,16 +67,6 @@ vendor:
 	go mod vendor
 	go mod verify
 
-.PHONY: fmt
-fmt:
-	@echo "$(REPO) fmt"
-	go fmt $(PKGS)
-
-.PHONY: vet
-vet:
-	@echo "$(REPO) vet"
-	go vet $(PKGS)
-
 .PHONY: debug
 debug:
 	@echo "$(REPO) debug"
@@ -79,7 +75,12 @@ debug:
 .PHONY: debugtest
 debugtest:
 	@echo "$(REPO) debugtest"
-	dlv test --build-flags='$(TEST_PKGS)' -- -test.run $(TESTS)
+	dlv test $(DEBUG_PKG) --build-flags='-tags=integration' -- -test.run $(TESTS)
+
+.PHONY: vet
+vet:
+	@echo "$(REPO) vet"
+	go vet $(TEST_PKGS)
 
 .PHONY: test
 test:
@@ -101,7 +102,7 @@ coverage:
 	@echo "$(REPO) coverage"
 	@touch $(COVERAGE_FILE)
 	gotestsum -f short-verbose -- -tags=integration -v -run $(TESTS) \
-			  -covermode=atomic -coverpkg=./... -coverprofile=$(COVERAGE_FILE) $(TEST_PKGS)
+			  -covermode=atomic -coverpkg=$(PKGS) -coverprofile=$(COVERAGE_FILE) $(TEST_PKGS)
 
 .PHONY: coverage.text
 coverage.text: coverage

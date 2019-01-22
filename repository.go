@@ -1,6 +1,14 @@
 package raizel
 
-import "github.com/rjansen/yggdrasil"
+import (
+	"errors"
+
+	"github.com/rjansen/yggdrasil"
+)
+
+var (
+	ErrNotFound = errors.New("err_notfound")
+)
 
 type EntityKey interface {
 	EntityName() string

@@ -61,3 +61,7 @@ func TestRepository(test *testing.T) {
 	_ = repository.Delete(scenario.tree, scenario.key)
 	_ = repository.Close(scenario.tree)
 }
+
+func TestErrNoyFound(test *testing.T) {
+	require.NotNil(test, ErrNotFound, "errnotfound invalid instance")
+}
