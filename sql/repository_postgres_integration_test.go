@@ -113,13 +113,12 @@ func TestRepositoryPostgresGet(test *testing.T) {
 			fmt.Sprintf("[%d]-%s", index, scenario.name),
 			func(t *testing.T) {
 				scenario.setup(t)
+				defer scenario.tearDown(t)
 
 				repository := NewRepository(scenario.mapper)
 				require.NotNil(t, repository, "repository instance")
 				err := repository.Get(scenario.tree, scenario.key, scenario.result)
 				require.Equal(t, scenario.err, err, "get error")
-				err = repository.Close(scenario.tree)
-				require.Nil(t, err, "close error")
 			},
 		)
 	}
@@ -168,12 +167,14 @@ func (scenario *testRepositoryPostgresSet) setup(t *testing.T) {
 }
 
 func (scenario *testRepositoryPostgresSet) tearDown(t *testing.T) {
+	db := MustReference(scenario.tree)
 	if scenario.mockData != nil {
-		var (
-			db     = MustReference(scenario.tree)
-			_, err = db.Exec(psqlDeleteEntityMock, scenario.mockData.ID)
-		)
-		require.Nil(t, err, "teardown error")
+		_, err := db.Exec(psqlDeleteEntityMock, scenario.mockData.ID)
+		require.Nil(t, err, "teardown mock error")
+	}
+	if scenario.data != nil {
+		_, err := db.Exec(psqlDeleteEntityMock, scenario.data.ID)
+		require.Nil(t, err, "teardown data error")
 	}
 	scenario.tree.Close()
 }
@@ -243,13 +244,12 @@ func TestRepositoryPostgresSet(test *testing.T) {
 			fmt.Sprintf("[%d]-%s", index, scenario.name),
 			func(t *testing.T) {
 				scenario.setup(t)
+				defer scenario.tearDown(t)
 
 				repository := NewRepository(scenario.mapper)
 				require.NotNil(t, repository, "repository instance")
 				err := repository.Set(scenario.tree, scenario.key, scenario.data)
 				require.Equal(t, scenario.err, err, "set error")
-				err = repository.Close(scenario.tree)
-				require.Nil(t, err, "close error")
 			},
 		)
 	}
@@ -297,13 +297,6 @@ func (scenario *testRepositoryPostgresDelete) setup(t *testing.T) {
 }
 
 func (scenario *testRepositoryPostgresDelete) tearDown(t *testing.T) {
-	if scenario.mockData != nil {
-		var (
-			db     = MustReference(scenario.tree)
-			_, err = db.Exec(psqlDeleteEntityMock, scenario.mockData.ID)
-		)
-		require.Nil(t, err, "teardown error")
-	}
 	scenario.tree.Close()
 }
 
@@ -335,13 +328,12 @@ func TestRepositoryPostgresDelete(test *testing.T) {
 			fmt.Sprintf("[%d]-%s", index, scenario.name),
 			func(t *testing.T) {
 				scenario.setup(t)
+				defer scenario.tearDown(t)
 
 				repository := NewRepository(scenario.mapper)
 				require.NotNil(t, repository, "repository instance")
 				err := repository.Delete(scenario.tree, scenario.key)
 				require.Equal(t, scenario.err, err, "set error")
-				repository.Close(scenario.tree)
-				require.Nil(t, err, "close error")
 			},
 		)
 	}

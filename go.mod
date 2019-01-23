@@ -5,6 +5,7 @@ require (
 	github.com/gocql/gocql v0.0.0-20181124151448-70385f88b28b
 	github.com/golang/protobuf v1.2.0
 	github.com/google/go-cmp v0.2.0
+	github.com/google/uuid v1.1.0
 	github.com/googleapis/gax-go v2.0.2+incompatible // indirect
 	github.com/huandu/go-sqlbuilder v1.1.0
 	github.com/lib/pq v1.0.0

@@ -6,6 +6,8 @@ import (
 
 	"github.com/rjansen/raizel"
 	"github.com/rjansen/yggdrasil"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 type repository struct{}
@@ -25,6 +27,9 @@ func (*repository) Get(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.
 		doc, err = ref.Get(context.Background())
 	)
 	if err != nil {
+		if grpc.Code(err) == codes.NotFound {
+			return raizel.ErrNotFound
+		}
 		return err
 	}
 	return doc.DataTo(entity)

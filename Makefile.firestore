@@ -1,8 +1,17 @@
-.PHONY: firestore_run
-firestore_run:
-	@echo "$(REPO) firestore_run"
+.PHONY: firestore.createsa
+firestore.createsa:
+	gcloud iam service-accounts create $(SERVICE_ACCOUNT) --display-name $(SERVICE_ACCOUNT_DISPLAYNAME)
+	gcloud projects add-iam-policy-binding $(PROJECT_ID) \
+	   	--member serviceAccount:$(SERVICE_ACCOUNT)@$(PROJECT_ID).iam.gserviceaccount.com \
+		--role roles/datastore.user
 
-.PHONY: firestore_kill
-firestore_kill:
-	@echo "$(REPO) firestore_kill"
+$(SERVICE_ACCOUNT_KEY):
+	gcloud iam service-accounts keys create $(SERVICE_ACCOUNT_KEY) \
+		--iam-account $(SERVICE_ACCOUNT)@$(PROJECT_ID).iam.gserviceaccount.com
 
+.PHONY: firestore.createkey
+firestore.createkey: $(SERVICE_ACCOUNT_KEY)
+	@ls -l $(SERVICE_ACCOUNT_KEY)
+
+.PHONY: firestore.setup
+firestore.setup: firestore.createsa firestore.createkey

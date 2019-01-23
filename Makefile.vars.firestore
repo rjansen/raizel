@@ -1,0 +1,6 @@
+# Firestore vars
+PROJECT_ID                            ?= project-id
+SERVICE_ACCOUNT             		  ?= service-account
+SERVICE_ACCOUNT_DISPLAYNAME 		  ?= "Service Account"
+SERVICE_ACCOUNT_KEY         		  ?= $(HOME)/.raizel/$(SERVICE_ACCOUNT).json
+export GOOGLE_APPLICATION_CREDENTIALS ?= $(SERVICE_ACCOUNT_KEY)

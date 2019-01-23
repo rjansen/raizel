@@ -1,0 +1,7 @@
+# Sql vars
+SQL_DRIVER         ?= postgres
+SQL_USER           ?= postgres
+SQL_HOST           ?= localhost
+SQL_DSN            ?= "$(SQL_DRIVER)://$(SQL_USER):$(SQL_PASSWORD)@$(SQL_HOST):$(SQL_PORT)/$(SQL_DATABASE)?sslmode=disable"
+
+
