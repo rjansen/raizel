@@ -7,12 +7,12 @@ go:
 install: sudo make deps
 
 before_script:
-    - sudo /etc/init.d/postgresql stop
-    - make postgres.run firestore.decodekeycontent
+    #- sudo /etc/init.d/postgresql stop
+    - make postgres.setup firestore.decodekeycontent
 
 script: make ci
 
-after_script: make postgres.kill
+# after_script: make postgres.kill
 
 after_success: make coverage.push
 
@@ -22,4 +22,4 @@ notifications:
         on_failure: always
 
 services:
-    - docker
+    - postgres
