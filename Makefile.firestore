@@ -13,5 +13,18 @@ $(SERVICE_ACCOUNT_KEY):
 firestore.createkey: $(SERVICE_ACCOUNT_KEY)
 	@ls -l $(SERVICE_ACCOUNT_KEY)
 
+.PHONY: firestore.encodekeycontent
+firestore.encodekeycontent: $(SERVICE_ACCOUNT_KEY)
+	@cat $(SERVICE_ACCOUNT_KEY) | base64 -w 0
+
 .PHONY: firestore.setup
 firestore.setup: firestore.createsa firestore.createkey
+
+ifdef SERVICE_ACCOUNT_KEY_CONTENT
+$(SERVICE_ACCOUNT_KEY_DIR):
+	mkdir -p $(SERVICE_ACCOUNT_KEY_DIR)
+
+firestore.decodekeycontent: $(SERVICE_ACCOUNT_KEY_DIR)
+	@echo $(SERVICE_ACCOUNT_KEY_CONTENT) | base64 --decode -w 0 > $(SERVICE_ACCOUNT_KEY)
+	ls -l $(SERVICE_ACCOUNT_KEY)
+endif

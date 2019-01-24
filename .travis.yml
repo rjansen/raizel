@@ -6,7 +6,7 @@ go:
 
 install: sudo make deps
 
-before_script: make postgres.run
+before_script: make postgres.run firestore.decodekeycontent
 
 script: make ci
 

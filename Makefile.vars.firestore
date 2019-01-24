@@ -3,4 +3,5 @@ PROJECT_ID                            ?= project-id
 SERVICE_ACCOUNT                       ?= service-account
 SERVICE_ACCOUNT_DISPLAYNAME           ?= "Service Account"
 SERVICE_ACCOUNT_KEY                   ?= $(HOME)/.raizel/$(SERVICE_ACCOUNT).json
+SERVICE_ACCOUNT_KEY_DIR               := $(dir $(SERVICE_ACCOUNT_KEY))
 export GOOGLE_APPLICATION_CREDENTIALS ?= $(SERVICE_ACCOUNT_KEY)
