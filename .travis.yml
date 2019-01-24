@@ -6,7 +6,11 @@ go:
 
 install: sudo make deps
 
+before_script: postgres.run
+
 script: make ci
+
+after_script: postgres.kill
 
 after_success: make coverage.push
 
@@ -14,3 +18,6 @@ notifications:
     email:
         on_success: change
         on_failure: always
+
+services:
+    - docker
