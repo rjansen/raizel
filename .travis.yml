@@ -6,11 +6,11 @@ go:
 
 install: sudo make deps
 
-before_script: postgres.run
+before_script: make postgres.run
 
 script: make ci
 
-after_script: postgres.kill
+after_script: make postgres.kill
 
 after_success: make coverage.push
 
