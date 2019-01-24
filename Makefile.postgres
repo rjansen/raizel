@@ -1,7 +1,7 @@
 .PHONY: postgres_run
 postgres.run:
 	@echo "$(REPO) postgres.run"
-	docker run --rm -d --name postgres-run --net=host \
+	docker run --rm --name postgres-run --net=host \
 		-v "$(BASE_DIR)/etc/test/integration/postgres/scripts:/docker-entrypoint-initdb.d" postgres:11.1
 	@sleep 5 #wait until database is ready
 
