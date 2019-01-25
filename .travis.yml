@@ -23,3 +23,5 @@ notifications:
 
 services:
     - postgres
+addons:
+    postgresql: "11.1"
