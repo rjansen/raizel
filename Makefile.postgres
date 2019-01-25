@@ -13,6 +13,8 @@ postgres.kill:
 .PHONY: postgres.setup
 postgres.setup:
 	@echo "$(REPO) postgres.setup"
+	sleep 5
+	-psql -U $(POSTGRES_USER) -c '\d+'
 	cat $(POSTGRES_SCRIPTS_DIR)/* | \
 		psql -h $(POSTGRES_HOST) -U $(POSTGRES_USER) -d $(POSTGRES_DATABASE) -1 -f -
 
