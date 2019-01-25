@@ -1,19 +1,21 @@
 # raizel [![Build Status](https://travis-ci.org/rjansen/raizel.svg?branch=master)](https://travis-ci.org/rjansen/raizel) [![Coverage Status](https://codecov.io/gh/rjansen/raizel/branch/master/graph/badge.svg)](https://codecov.io/gh/rjansen/raizel) [![Go Report Card](https://goreportcard.com/badge/github.com/rjansen/raizel)](https://goreportcard.com/report/github.com/rjansen/raizel)
 
-A persistence helper library
+A persistence helper library that supports Firestore and PostgreSQL
+
+##### Cassandra and MySQL support will be avaiable soon
 
 # dependencies
-## tools (you must provide the installation)
+### tools (you must provide the installation)
 - [Docker](https://www.docker.com/)
 
-## libraries
-- [gocql](github.com/gocql/gocql)
-- [mysql-go-sql-driver](github.com/go-sql-driver/mysql)
-- [psql-libpq](github.com/lib/pq)
-- [zap](https://github.com/uber-go/zap)
-- [viper](github.com/spf13/viper)
-- [l](github.com/rjansen/l)
-- [migi](github.com/rjansen/migi)
+### libraries
+- [firestore](https://godoc.org/cloud.google.com/go/firestore)
+- [gocql](https://github.com/gocql/gocql)
+- [mysql-go-sql-driver](https://github.com/go-sql-driver/mysql)
+- [psql-libpq](https://github.com/lib/pq)
+- [l](https://github.com/rjansen/l)
+- [migi](https://github.com/rjansen/migi)
+- [yggdrasil](https://github.com/rjansen/yggdrasil)
 
 # tests and coverage
 - run unit tests: `make docker.test`
