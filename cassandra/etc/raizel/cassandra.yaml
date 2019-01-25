@@ -1,8 +1,0 @@
-raizel:
-    cassandra:
-        url: "127.0.0.1:9042"
-        keyspace: "fivecolors"
-        username: "fivecolors"
-        password: "fivecolors"
-        numConns: 10
-        keepAliveDuration: 60000000000

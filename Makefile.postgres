@@ -1,0 +1,24 @@
+.PHONY: postgres.run
+postgres.run:
+	@echo "$(REPO) postgres.run"
+	docker run --rm -d --name postgres-run --net=host \
+		-v "$(POSTGRES_SCRIPTS_DIR):/docker-entrypoint-initdb.d" postgres:11.1
+	@sleep 5 #wait until database is ready
+
+.PHONY: postgres.kill
+postgres.kill:
+	@echo "$(REPO) postgres.kill"
+	docker kill postgres-run
+
+.PHONY: postgres.setup
+postgres.setup:
+	@echo "$(REPO) postgres.setup"
+	sleep 5
+	cat $(POSTGRES_SCRIPTS_DIR)/* | \
+		psql -h $(POSTGRES_HOST) -U $(POSTGRES_USER) -d $(POSTGRES_DATABASE) -1 -f -
+
+.PHONY: postgres_run
+postgres.psql:
+	@echo "$(REPO) postgres.psql"
+	docker run --rm -it --name psql-run --net=host postgres:11.1 \
+		psql -h $(POSTGRES_HOST) -U $(POSTGRES_USER) -d $(POSTGRES_DATABASE)

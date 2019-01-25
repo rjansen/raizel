@@ -1,9 +1,0 @@
-raizel:
-    sql:
-        driver: "postgres"
-        url: "postgres://fivecolors:fivecolors@127.0.0.1:5432/fivecolors?sslmode=disable"
-        database: "fivecolors"
-        username: "fivecolors"
-        password: "fivecolors"
-        numConns: 10
-        

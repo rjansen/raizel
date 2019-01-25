@@ -1,127 +1,143 @@
-NAME 			:= raizel
-BIN         	:= $(NAME)
-REPO        	:= github.com/rjansen/$(NAME)
-BUILD       	:= $(shell openssl rand -hex 10)
-VERSION     	:= $(shell if [ -f version ]; then awk '{printf $1}' < version; else openssl rand -hex 5; fi)
-MAKEFILE    	:= $(word $(words $(MAKEFILE_LIST)), $(MAKEFILE_LIST))
-BASE_DIR    	:= $(shell cd $(dir $(MAKEFILE)); pwd)
-PKGS        	:= $(shell go list ./... | grep -v /vendor/)
+include Makefile.vars
 
-#Test and Benchmark Parameters
-TEST_PKGS ?= 
-COVERAGE_FILE := $(NAME).coverage
-COVERAGE_HTML := $(NAME).coverage.html
-PKG_COVERAGE := $(NAME).pkg.coverage
-
-.PHONY: default
-default: build
-
-.PHONY: install
-install: install_sw_deps sync_deps
-	@echo "$(REPO) installed successfully" 
-
-.PHONY: install_sw_deps
-install_sw_deps:
-	brew install go
-	go get -u github.com/kardianos/govendor
-
-.PHONY: install_deps
-install_deps:
-	govendor fetch github.com/matryer/resync
-	govendor fetch github.com/Sirupsen/logrus/...
-	govendor fetch github.com/uber-go/zap
-
-.PHONY: sync_deps
-sync_deps:
-	govendor sync
-
-.PHONY: all
-all: build test bench_all coverage
-
-.PHONY: build
-build:
-	@echo "Building $(REPO)@$(VERSION)-$(BUILD)"
-	go build $(PKGS)
+.PHONY: ci
+ci: vet coverage.text bench
 
 .PHONY: clean
-clean: 
-	-rm $(NAME)*coverage*
-	-rm *.test
-	-rm *.pprof
+clean:
+	@echo "$(REPO) clean"
+	-rm $(NAME)*coverage* > /dev/null 2>&1
+	-rm *.test > /dev/null 2>&1
+	-rm *.pprof > /dev/null 2>&1
 
-.PHONY: reset
-reset: clean 
-	-cd vendor; rm -r */
+.PHONY: clearcache
+clearcache:
+	@echo "$(REPO) clearcache"
+	-rm -Rf $(BASE_DIR)/on > /dev/null 2>&1
+	-rm -Rf $(BASE_DIR)/vendor > /dev/null 2>&1
+	-rm -Rf $(TMP_DIR) > /dev/null 2>&1
 
-.PHONY: test_all
-test_all:
-	go test -v -race $(PKGS)
+.PHONY: install.gvm
+install.gvm:
+	@echo "$(REPO) install.gvm"
+	which gvm || \
+		curl -s -S -L https://raw.githubusercontent.com/moovweb/gvm/master/binscripts/gvm-installer | bash
+
+.PHONY: setup.gvm
+setup.gvm:
+	@echo "$(REPO) setup.gvm"
+	gvm install go$(GOVERSION) -B
+	@echo -e 'Please run:\n `gvm use go$(GOVERSION) --default`'
+
+.PHONY: install
+install: deps
+	@echo "$(REPO) install"
+
+$(TMP_DIR):
+	mkdir -p $(TMP_DIR)
+
+.PHONY: deps
+deps: $(TMP_DIR)
+	@echo "$(REPO) deps"
+	which gotestsum || (\
+		cd $(TMP_DIR) && \
+		curl -O -L https://github.com/gotestyourself/gotestsum/releases/download/v0.3.2/gotestsum_0.3.2_linux_amd64.tar.gz && \
+		tar xf gotestsum_0.3.2_linux_amd64.tar.gz && \
+		mv -f gotestsum /usr/local/bin \
+	)
+	gotestsum --help > /dev/null 2>&1
+	which codecov || (\
+		cd $(TMP_DIR) && \
+		curl -L -o codecov https://codecov.io/bash && \
+		chmod a+x codecov && \
+		mv -f codecov /usr/local/bin \
+	)
+	codecov -h > /dev/null 2>&1
+
+.PHONY: debug.deps
+debug.deps:
+	@echo "$(REPO) deps"
+	which dlv || \
+		go get -u github.com/derekparker/delve/cmd/dlv
+	dlv version
+
+.PHONY: vendor
+vendor:
+	@echo "$(REPO) vendor"
+	go mod vendor
+	go mod verify
+
+.PHONY: debug
+debug:
+	@echo "$(REPO) debug"
+	dlv debug $(REPO)
+
+.PHONY: debugtest
+debugtest:
+	@echo "$(REPO) debugtest"
+	dlv test $(DEBUG_PKG) --build-flags='-tags=integration' -- -test.run $(TESTS)
+
+.PHONY: vet
+vet:
+	@echo "$(REPO) vet"
+	go vet $(TEST_PKGS)
 
 .PHONY: test
 test:
-	@if [ "$(TEST_PKGS)" == "" ]; then \
-	    echo "Unit Test All Pkgs";\
-		go test -v -race -run=Unit $(PKGS) || exit 501;\
-	else \
-	    echo "Unit Test Selected Pkgs=$(TEST_PKGS)";\
-	    for tstpkg in $(TEST_PKGS); do \
-			go test -v -race -run=Unit $(REPO)/$$tstpkg || exit 501;\
-		done; \
-	fi
+	@echo "$(REPO) test"
+	gotestsum -f short-verbose -- -v -race -run $(TESTS) $(TEST_PKGS)
 
 .PHONY: itest
 itest:
-	@if [ "$(TEST_PKGS)" == "" ]; then \
-	    echo "Integration Test All Pkgs";\
-		go test -v -race -run=Int $(PKGS) || exit 501;\
-	else \
-	    echo "Integration Unit Test Selected Pkgs=$(TEST_PKGS)";\
-	    for tstpkg in $(TEST_PKGS); do \
-			go test -v -race -run=Int $(REPO)/$$tstpkg/itest || exit 501;\
-		done; \
-	fi
+	@echo "$(REPO) itest"
+	gotestsum -f short-verbose -- -tags=integration -v -race -run $(TESTS) $(TEST_PKGS)
 
-.PHONY: bench_all
-bench_all:
-	#go test -bench=. -run="^$$" -cpuprofile=cpu.pprof -memprofile=mem.pprof -benchmem $(PKGS)
-	go test -bench=. -run="^$$" -benchmem $(PKGS)
-
-.PHONY: benchmark
+.PHONY: bench
 bench:
-	@if [ "$(TEST_PKGS)" == "" ]; then \
-	    echo "Benchmark all Pkgs" ;\
-	    for tstpkg in $(PKGS); do \
-		    go test -bench=. -run="^$$" -cpuprofile=cpu.pprof -memprofile=mem.pprof -benchmem $$tstpkg || exit 501;\
-		done; \
-	else \
-	    echo "Benchmark Selected Pkgs=$(TEST_PKGS)" ;\
-	    for tstpkg in $(TEST_PKGS); do \
-		    go test -bench=. -run="^$$" -cpuprofile=cpu.pprof -memprofile=mem.pprof -benchmem $(REPO)/$$tstpkg || exit 501;\
-		done; \
-	fi
+	@echo "$(REPO) bench"
+	gotestsum -f short-verbose -- -bench=. -run="^$$" -benchmem $(TEST_PKGS)
 
 .PHONY: coverage
 coverage:
-	@echo "Testing with coverage"
-	@echo 'mode: set' > $(COVERAGE_FILE)
-	@touch $(PKG_COVERAGE)
+	@echo "$(REPO) coverage"
 	@touch $(COVERAGE_FILE)
-	@if [ "$(TEST_PKGS)" == "" ]; then \
-		for pkg in $(PKGS); do \
-			go test -v -coverprofile=$(PKG_COVERAGE) $$pkg || exit 501; \
-			if (( `grep -c -v 'mode: set' $(PKG_COVERAGE)` > 0 )); then \
-				grep -v 'mode: set' $(PKG_COVERAGE) >> $(COVERAGE_FILE); \
-			fi; \
-		done; \
-	else \
-	    echo "Testing with covegare the Pkgs=$(TEST_PKGS)" ;\
-	    for tstpkg in $(TEST_PKGS); do \
-			go test -v -coverprofile=$(PKG_COVERAGE) $(REPO)/$$tstpkg || exit 501; \
-			if (( `grep -c -v 'mode: set' $(PKG_COVERAGE)` > 0 )); then \
-				grep -v 'mode: set' $(PKG_COVERAGE) >> $(COVERAGE_FILE); \
-			fi; \
-		done; \
-	fi
-	@echo "Generating report"
-	@go tool cover -html=$(COVERAGE_FILE) -o $(COVERAGE_HTML)
-	open $(COVERAGE_HTML)
+	gotestsum -f short-verbose -- -tags=integration -v -run $(TESTS) \
+			  -covermode=atomic -coverpkg=$(PKGS) -coverprofile=$(COVERAGE_FILE) $(TEST_PKGS)
+
+.PHONY: coverage.text
+coverage.text: coverage
+	@echo "$(REPO) coverage.text"
+	go tool cover -func=$(COVERAGE_FILE)
+
+.PHONY: coverage.html
+coverage.html: coverage
+	@echo "$(REPO) coverage.html"
+	go tool cover -html=$(COVERAGE_FILE) -o $(COVERAGE_HTML)
+	@open $(COVERAGE_HTML) || google-chrome $(COVERAGE_HTML) || google-chrome-stable $(COVERAGE_HTML)
+
+.PHONY: coverage.push
+coverage.push:
+	@echo "$(REPO) coverage.push"
+	@#download codecov script and push report with oneline cmd
+	@#curl -sL https://codecov.io/bash | bash -s - -f $(COVERAGE_FILE)$(if $(CODECOV_TOKEN), -t $(CODECOV_TOKEN),)
+	@codecov -f $(COVERAGE_FILE)$(if $(CODECOV_TOKEN), -t $(CODECOV_TOKEN),)
+
+.PHONY: docker
+docker.build:
+	@echo "$(REPO)@$(BUILD) docker"
+	docker build --build-arg UID=$(shell id -u) --build-arg GID=$(shell id -g) \
+		         -t $(DOCKER_NAME) -t $(DOCKER_NAME):$(VERSION) -f ./etc/docker/Dockerfile .
+
+.PHONY: docker.bash
+docker.bash:
+	@echo "$(REPO)@$(BUILD) docker.bash"
+	docker run --rm --name $(NAME)-bash --entrypoint bash -it -u $(shell id -u):$(shell id -g) \
+			   -v `pwd`:/go/src/$(REPO) $(DOCKER_NAME)
+
+docker.%:
+	@echo "$(REPO)@$(BUILD) docker.$*"
+	@docker run --rm --name $(NAME)-run -u $(shell id -u):$(shell id -g) \
+    		    -v `pwd`:/go/src/$(REPO) $(DOCKER_NAME) $*
+
+include Makefile.postgres
+include Makefile.firestore

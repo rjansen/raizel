@@ -2,216 +2,357 @@ package sql
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"errors"
-	"github.com/rjansen/l"
-	"github.com/rjansen/raizel"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	sqlmock "gopkg.in/DATA-DOG/go-sqlmock.v1"
 )
 
-func init() {
-	if err := l.Setup(&l.Configuration{}); err != nil {
-		panic(err)
+type testDB struct {
+	name string
+	db   *sql.DB
+	err  error
+}
+
+func (scenario *testDB) setup(t *testing.T) {
+	if scenario.err == nil {
+		db, mock, err := sqlmock.New()
+		require.NotNil(t, db, "db instance")
+		require.NotNil(t, mock, "mock db instance")
+		require.Nil(t, err, "sqlmock error")
+
+		if scenario.err == nil {
+			mock.ExpectClose()
+		}
+
+		scenario.db = db
 	}
 }
 
-func TestUnitDelegateDB(t *testing.T) {
-	assert.NotPanics(t,
-		func() {
-			db := NewDelegateDB(new(sql.DB))
-			assert.NotNil(t, db)
-		},
-	)
-}
-
-func TestUnitDelegateRow(t *testing.T) {
-	assert.NotPanics(t,
-		func() {
-			row := NewDelegateRow(new(sql.Row))
-			assert.NotNil(t, row)
-
-			var err error
-			assert.Panics(t,
-				func() {
-					var out1 string
-					var out2 int
-					err = row.Scan(&out1, &out2)
-				},
-			)
-			assert.Nil(t, err)
-			assert.Panics(t,
-				func() {
-					row.Scan(nil)
-				},
-			)
-		},
-	)
-}
-
-func TestUnitClient(t *testing.T) {
-	assert.NotPanics(t,
-		func() {
-			client := NewClient(NewDBMock())
-			assert.Nil(t, client.Close())
-		},
-	)
-}
-
-func TestUnitClientPool(t *testing.T) {
-	dbMock := NewDBMock()
-	dbMock.On("Ping").Return(nil)
-	dbMock.On("Close").Return(nil)
-	setupPool := &Pool{
-		datasource: new(Datasource),
-		db:         dbMock,
+func (scenario *testDB) tearDown(t *testing.T) {
+	if scenario.db != nil {
+		scenario.db.Close()
 	}
-	Config = &Configuration{}
-	assert.Nil(t, raizel.Setup(setupPool))
-	pool, err := raizel.GetPool()
-	assert.Nil(t, err)
-	assert.NotNil(t, pool)
-	client, err := pool.Get()
-	assert.Nil(t, err)
-	assert.NotNil(t, client)
-	err = client.Close()
-	assert.Nil(t, err)
-	err = pool.Close()
-	assert.Nil(t, err)
 }
 
-func TestUnitQueryOneExec(t *testing.T) {
-	rowMock := NewRowMock()
-	rowMock.On("Scan", mock.Anything).Return(nil)
-	dbMock := NewDBMock()
-	dbMock.On("Close").Return(nil)
-	dbMock.On("QueryRow", mock.Anything, mock.Anything).Return(rowMock)
-	persistenceClient := NewClient(dbMock)
-	assert.NotNil(t, persistenceClient)
-	err := persistenceClient.QueryOne("select id, name from sql.mock m where m.mockField = ?",
-		func(f raizel.Fetchable) error {
-			assert.NotNil(t, f)
-			var id int
-			var name string
-			return f.Scan(&id, &name)
-		}, "mockValue")
-	assert.Nil(t, err)
-}
-
-func TestUnitQueryOneErr(t *testing.T) {
-	mockErr := errors.New("QueryOneMockErr")
-	rowMock := NewRowMock()
-	rowMock.On("Scan", mock.Anything).Return(mockErr)
-	dbMock := NewDBMock()
-	dbMock.On("Close").Return(nil)
-	dbMock.On("QueryRow", mock.Anything, mock.Anything).Return(rowMock)
-	persistenceClient := NewClient(dbMock)
-	assert.NotNil(t, persistenceClient)
-	err := persistenceClient.QueryOne("select * from xql.mock m where m.mockField = ?",
-		func(f raizel.Fetchable) error {
-			assert.NotNil(t, f)
-			scanErr := f.Scan(nil)
-			assert.Equal(t, mockErr, scanErr)
-			return scanErr
-		}, "mockValue")
-	assert.NotNil(t, err)
-	assert.Equal(t, mockErr, err)
-}
-
-func TestUnitQuery(t *testing.T) {
-	records := 5
-	recordIdx := 0
-	rowsMock := NewRowsMock()
-	queryCall := rowsMock.On("Next")
-	queryCall.Run(
-		func(args mock.Arguments) {
-			recordIdx++
-			if recordIdx <= records {
-				queryCall.ReturnArguments = []interface{}{true}
-			} else {
-				queryCall.ReturnArguments = []interface{}{false}
-			}
+func TestDB(test *testing.T) {
+	scenarios := []testDB{
+		{
+			name: "Creates a new client",
 		},
-	)
-	rowsMock.On("Scan", mock.Anything).Return(nil)
-	dbMock := NewDBMock()
-	dbMock.On("Close").Return(nil)
-	dbMock.On("Query", mock.Anything, mock.Anything).Return(rowsMock, nil)
-	persistenceClient := NewClient(dbMock)
-	assert.NotNil(t, persistenceClient)
-	err := persistenceClient.Query("select id, name from sql.mock m where m.mockField != ?",
-		func(f raizel.Iterable) error {
-			assert.NotNil(t, f)
-			fetchedRecords := 0
-			for f.Next() {
-				var id int
-				var name string
-				fetchedErr := f.Scan(&id, &name)
-				assert.Nil(t, fetchedErr)
-				fetchedRecords++
+		{
+			name: "Returns error because db is blank",
+			err:  ErrBlankDB,
+		},
+	}
+
+	for index, scenario := range scenarios {
+		test.Run(
+			fmt.Sprintf("[%d]-%s", index, scenario.name),
+			func(t *testing.T) {
+				scenario.setup(t)
+				defer scenario.tearDown(t)
+
+				db, err := newDB(scenario.db)
+				require.Equal(t, scenario.err, err, "newDB error")
+				if scenario.err == nil {
+					require.NotNil(t, db, "db instance")
+					require.Nil(t, db.Ping(), "ping error")
+					require.Nil(t, db.Close(), "close error")
+				} else {
+					require.Nil(t, db, "db invalid instance")
+				}
+			},
+		)
+	}
+}
+
+type testQuery struct {
+	name      string
+	db        *sql.DB
+	sqlMock   sqlmock.Sqlmock
+	query     string
+	arguments []interface{}
+	columns   []string
+	rows      [][]interface{}
+	err       error
+	rowsErr   error
+}
+
+func (scenario *testQuery) setup(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NotNil(t, db, "db instance")
+	require.NotNil(t, mock, "mock db instance")
+	require.Nil(t, err, "sqlmock error")
+
+	if scenario.err == nil {
+		mockRows := sqlmock.NewRows(scenario.columns)
+		if scenario.rowsErr == nil {
+			for _, row := range scenario.rows {
+				columns := make([]driver.Value, len(row))
+				for index, column := range row {
+					columns[index] = column
+				}
+				mockRows.AddRow(columns...)
 			}
-			assert.Equal(t, records, fetchedRecords)
-			return nil
-		}, "mockValue")
-	assert.Nil(t, err)
+		} else {
+			mockRows.RowError(1, scenario.rowsErr)
+		}
+		mock.ExpectQuery(scenario.query).WillReturnRows(mockRows)
+	} else {
+		mock.ExpectQuery(scenario.query).WillReturnError(scenario.err)
+	}
+
+	mock.ExpectClose()
+
+	scenario.db = db
+	scenario.sqlMock = mock
 }
 
-func TestUnitQueryErr(t *testing.T) {
-	mockErr := errors.New("QueryMockErr")
-	dbMock := NewDBMock()
-	dbMock.On("Close").Return(nil)
-	dbMock.On("Query", mock.Anything, mock.Anything).Return(nil, mockErr)
-	persistenceClient := NewClient(dbMock)
-	assert.NotNil(t, persistenceClient)
-	err := persistenceClient.Query("select id, name from sql.mock m where m.mockField != ?",
-		func(f raizel.Iterable) error {
-			assert.NotNil(t, f)
-			var id int
-			var name string
-			return f.Scan(&id, &name)
-		}, "mockValue")
-	assert.NotNil(t, err)
-	assert.Equal(t, mockErr, err)
+func (scenario *testQuery) tearDown(t *testing.T) {
+	if scenario.db != nil {
+		scenario.db.Close()
+	}
 }
 
-func TestUnitQueryScanErr(t *testing.T) {
-	mockErr := errors.New("FetchMockErr")
-	rowsMock := NewRowsMock()
-	rowsMock.On("Next").Return(true)
-	rowsMock.On("Scan", mock.Anything).Return(mockErr)
-	dbMock := NewDBMock()
-	dbMock.On("Close").Return(nil)
-	dbMock.On("Query", mock.Anything, mock.Anything).Return(rowsMock, nil)
-	persistenceClient := NewClient(dbMock)
-	assert.NotNil(t, persistenceClient)
-	err := persistenceClient.Query("select id, name from sql.mock m where m.mockField != ?",
-		func(f raizel.Iterable) error {
-			assert.NotNil(t, f)
-			var id int
-			var name string
-			return f.Scan(&id, &name)
-		}, "mockValue")
-	assert.NotNil(t, err)
-	assert.Equal(t, mockErr, err)
+func TestQuery(test *testing.T) {
+	scenarios := []testQuery{
+		{
+			name:    "Executes query successfully",
+			query:   "select id, text from mock",
+			columns: []string{"id", "text"},
+			rows: [][]interface{}{
+				{1, "mock one"},
+				{2, "mock two"},
+			},
+		},
+		{
+			name:    "When query returns error",
+			query:   "select",
+			columns: []string{"id", "text"},
+			err:     errors.New("err_mockquery"),
+		},
+		{
+			name:    "Returns error when try to read results",
+			query:   "select",
+			columns: []string{"id", "text"},
+			rowsErr: errors.New("err_mockrows"),
+		},
+	}
+
+	for index, scenario := range scenarios {
+		test.Run(
+			fmt.Sprintf("[%d]-%s", index, scenario.name),
+			func(t *testing.T) {
+				scenario.setup(t)
+				defer scenario.tearDown(t)
+
+				db, err := newDB(scenario.db)
+				require.Nil(t, err, "newDB error")
+				require.NotNil(t, db, "db instance")
+				rows, err := db.Query(scenario.query, scenario.arguments...)
+				require.Equal(t, scenario.err, err, "query error")
+				if scenario.err == nil {
+					for index := 0; rows.Next(); index++ {
+						var (
+							values   = make([]interface{}, len(scenario.columns))
+							pointers = make([]interface{}, len(scenario.columns))
+						)
+						for index, _ := range scenario.columns {
+							pointers[index] = &values[index]
+						}
+						err := rows.Scan(pointers...)
+						require.Equal(t, scenario.rowsErr, err, "rows error")
+						if scenario.rowsErr == nil {
+							row := scenario.rows[index]
+							require.Equal(t, row, values, "row error")
+						}
+					}
+				} else {
+					require.Nil(t, rows, "rows invalid instance")
+				}
+				require.Nil(t, db.Close(), "close error")
+				require.Nil(t, scenario.sqlMock.ExpectationsWereMet(), "sqlmock invalid expectations")
+			},
+		)
+	}
 }
 
-func TestUnitExec(t *testing.T) {
-	mockResult := NewResultMock()
-	dbMock := NewDBMock()
-	dbMock.On("Close").Return(nil)
-	dbMock.On("Exec", mock.Anything, mock.Anything).Return(mockResult, nil)
-	persistenceClient := NewClient(dbMock)
-	assert.NotNil(t, persistenceClient)
-	_, err := persistenceClient.Exec("insert into sql.mock values (?, ?)", "mockValue1", "mockValue2")
-	assert.Nil(t, err)
+type testQueryRow struct {
+	name      string
+	db        *sql.DB
+	sqlMock   sqlmock.Sqlmock
+	query     string
+	arguments []interface{}
+	columns   []string
+	row       []interface{}
+	err       error
 }
 
-func TestUnitExecErr(t *testing.T) {
-	dbMock := NewDBMock()
-	dbMock.On("Close").Return(nil)
-	dbMock.On("Exec", mock.Anything, mock.Anything).Return(nil, errors.New("ExecMockErr"))
-	persistenceClient := NewClient(dbMock)
-	assert.NotNil(t, persistenceClient)
-	_, err := persistenceClient.Exec("insert into sql.mock values (?)", "mockValue1", "mockValue2")
-	assert.NotNil(t, err)
+func (scenario *testQueryRow) setup(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NotNil(t, db, "db instance")
+	require.NotNil(t, mock, "mock db instance")
+	require.Nil(t, err, "sqlmock error")
+
+	mockRows := sqlmock.NewRows(scenario.columns)
+	if scenario.err == nil {
+		columns := make([]driver.Value, len(scenario.row))
+		for index, column := range scenario.row {
+			columns[index] = column
+		}
+		mockRows.AddRow(columns...)
+		mock.ExpectQuery(scenario.query).WillReturnRows(mockRows)
+	} else {
+		mock.ExpectQuery(scenario.query).WillReturnError(scenario.err)
+	}
+
+	mock.ExpectClose()
+
+	scenario.db = db
+	scenario.sqlMock = mock
+}
+
+func (scenario *testQueryRow) tearDown(t *testing.T) {
+	if scenario.db != nil {
+		scenario.db.Close()
+	}
+}
+
+func TestQueryRow(test *testing.T) {
+	scenarios := []testQueryRow{
+		{
+			name:    "Executes query row successfully",
+			query:   "select id, text from mock",
+			columns: []string{"id", "text"},
+			row: []interface{}{
+				1, "mock one",
+			},
+		},
+		{
+			name:    "Returns error when try to read results",
+			query:   "select",
+			columns: []string{"id", "text"},
+			err:     errors.New("err_mockrows"),
+		},
+	}
+
+	for index, scenario := range scenarios {
+		test.Run(
+			fmt.Sprintf("[%d]-%s", index, scenario.name),
+			func(t *testing.T) {
+				scenario.setup(t)
+				defer scenario.tearDown(t)
+
+				db, err := newDB(scenario.db)
+				require.Nil(t, err, "newDB error")
+				require.NotNil(t, db, "db instance")
+				row := db.QueryRow(scenario.query, scenario.arguments...)
+				require.NotNil(t, row, "row invalid instance")
+				var (
+					values   = make([]interface{}, len(scenario.columns))
+					pointers = make([]interface{}, len(scenario.columns))
+				)
+				for index, _ := range scenario.columns {
+					pointers[index] = &values[index]
+				}
+				err = row.Scan(pointers...)
+				require.Equal(t, scenario.err, err, "scan error")
+				if scenario.err == nil {
+					require.Equal(t, scenario.row, values, "row columns invalid instance")
+				}
+				require.Nil(t, db.Close(), "close error")
+				require.Nil(t, scenario.sqlMock.ExpectationsWereMet(), "sqlmock invalid expectations")
+			},
+		)
+	}
+}
+
+type testExec struct {
+	name         string
+	db           *sql.DB
+	sqlMock      sqlmock.Sqlmock
+	query        string
+	arguments    []interface{}
+	lastID       int64
+	rowsAffected int64
+	err          error
+}
+
+func (scenario *testExec) setup(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NotNil(t, db, "db instance")
+	require.NotNil(t, mock, "mock db instance")
+	require.Nil(t, err, "sqlmock error")
+
+	if scenario.err == nil {
+		mockResult := sqlmock.NewResult(scenario.lastID, scenario.rowsAffected)
+		mock.ExpectExec(scenario.query).WillReturnResult(mockResult)
+	} else {
+		mock.ExpectExec(scenario.query).WillReturnError(scenario.err)
+	}
+
+	mock.ExpectClose()
+
+	scenario.db = db
+	scenario.sqlMock = mock
+}
+
+func (scenario *testExec) tearDown(t *testing.T) {
+	if scenario.db != nil {
+		scenario.db.Close()
+	}
+}
+
+func TestExec(test *testing.T) {
+	scenarios := []testExec{
+		{
+			name:  "Executes command successfully",
+			query: "insert into mock",
+			arguments: []interface{}{
+				1, "mock one",
+			},
+			lastID:       1,
+			rowsAffected: 1,
+		},
+		{
+			name:  "Returns error when try to execute command",
+			query: "insert into mock",
+			err:   errors.New("err_mockrows"),
+		},
+	}
+
+	for index, scenario := range scenarios {
+		test.Run(
+			fmt.Sprintf("[%d]-%s", index, scenario.name),
+			func(t *testing.T) {
+				scenario.setup(t)
+				defer scenario.tearDown(t)
+
+				db, err := newDB(scenario.db)
+				require.Nil(t, err, "newDB error")
+				require.NotNil(t, db, "db instance")
+				result, err := db.Exec(scenario.query, scenario.arguments...)
+				require.Equal(t, scenario.err, err, "exec error")
+				if scenario.err == nil {
+					require.NotNil(t, result, "result invalid instance")
+
+					lastID, err := result.LastInsertId()
+					require.Nil(t, err, "lastinsertid error")
+					require.Equal(t, scenario.lastID, lastID, "lastinsertid invalid instance")
+
+					rowsAffected, err := result.RowsAffected()
+					require.Nil(t, err, "rowsaffected error")
+					require.Equal(t, scenario.rowsAffected, rowsAffected, "rowsaffected invalid instance")
+				} else {
+					require.Nil(t, result, "result invalid instance")
+				}
+				require.Nil(t, db.Close(), "close error")
+				require.Nil(t, scenario.sqlMock.ExpectationsWereMet(), "sqlmock invalid expectations")
+			},
+		)
+	}
 }
