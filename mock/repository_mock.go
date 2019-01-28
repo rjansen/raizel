@@ -32,13 +32,13 @@ func (o *Object) Scan(src interface{}) error {
 }
 
 type MockEntity struct {
-	ID       string    `firestore:"id" db:"id"`
-	String   string    `firestore:"string" db:"string"`
-	Integer  int32     `firestore:"integer" db:"integer"`
-	Float    float32   `firestore:"float" db:"float"`
-	DateTime time.Time `firestore:"date_time" db:"date_time"`
-	Boolean  bool      `firestore:"boolean" db:"boolean"`
-	Object   Object    `firestore:"object" db:"object"`
+	ID       string    `json:"id" firestore:"id" db:"id"`
+	String   string    `json:"string" firestore:"string" db:"string"`
+	Integer  int32     `json:"integer" firestore:"integer" db:"integer"`
+	Float    float32   `json:"float" firestore:"float" db:"float"`
+	DateTime time.Time `json:"date_time" firestore:"date_time" db:"date_time"`
+	Boolean  bool      `json:"boolean" firestore:"boolean" db:"boolean"`
+	Object   Object    `json:"object" firestore:"object" db:"object"`
 }
 
 func NewMockEntity() *MockEntity {
