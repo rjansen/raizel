@@ -56,7 +56,7 @@ func TestDB(test *testing.T) {
 				scenario.setup(t)
 				defer scenario.tearDown(t)
 
-				db, err := newDB(scenario.db)
+				db, err := NewDB(scenario.db)
 				require.Equal(t, scenario.err, err, "newDB error")
 				if scenario.err == nil {
 					require.NotNil(t, db, "db instance")
@@ -150,7 +150,7 @@ func TestQuery(test *testing.T) {
 				scenario.setup(t)
 				defer scenario.tearDown(t)
 
-				db, err := newDB(scenario.db)
+				db, err := NewDB(scenario.db)
 				require.Nil(t, err, "newDB error")
 				require.NotNil(t, db, "db instance")
 				rows, err := db.Query(scenario.query, scenario.arguments...)
@@ -247,7 +247,7 @@ func TestQueryRow(test *testing.T) {
 				scenario.setup(t)
 				defer scenario.tearDown(t)
 
-				db, err := newDB(scenario.db)
+				db, err := NewDB(scenario.db)
 				require.Nil(t, err, "newDB error")
 				require.NotNil(t, db, "db instance")
 				row := db.QueryRow(scenario.query, scenario.arguments...)
@@ -332,7 +332,7 @@ func TestExec(test *testing.T) {
 				scenario.setup(t)
 				defer scenario.tearDown(t)
 
-				db, err := newDB(scenario.db)
+				db, err := NewDB(scenario.db)
 				require.Nil(t, err, "newDB error")
 				require.NotNil(t, db, "db instance")
 				result, err := db.Exec(scenario.query, scenario.arguments...)

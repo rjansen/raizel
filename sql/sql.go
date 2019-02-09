@@ -59,7 +59,7 @@ func (db *db) Exec(sql string, arguments ...interface{}) (Result, error) {
 	return db.DB.Exec(sql, arguments...)
 }
 
-func newDB(sqlDB *sql.DB) (DB, error) {
+func NewDB(sqlDB *sql.DB) (DB, error) {
 	if sqlDB == nil {
 		return nil, ErrBlankDB
 	}
