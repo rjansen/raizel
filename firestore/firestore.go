@@ -32,9 +32,14 @@ type DocumentIterator interface {
 	GetAll() ([]DocumentSnapshot, error)
 }
 
+type Direction = firestore.Direction
+
 type Query interface {
 	Documents(context.Context) DocumentIterator
 	Where(string, string, interface{}) Query
+	OrderBy(string, Direction) Query
+	Offset(int) Query
+	Limit(int) Query
 }
 
 type Client interface {
@@ -42,12 +47,21 @@ type Client interface {
 	Doc(string) DocumentRef
 	Collection(string) CollectionRef
 	GetAll(context.Context, ...DocumentRef) ([]DocumentSnapshot, error)
+	Batch() WriteBatch
+}
+
+type WriteBatch interface {
+	Set(DocumentRef, interface{}, ...SetOption) WriteBatch
+	Delete(DocumentRef) WriteBatch
+	Commit(context.Context) error
 }
 
 // delegate implementation
 var (
-	MergeAll                = mergeSetOption{firestore.MergeAll}
-	ErrBlankFirestoreClient = errors.New("err_blankclient")
+	MergeAll                          = mergeSetOption{firestore.MergeAll}
+	Asc                     Direction = firestore.Asc
+	Desc                    Direction = firestore.Desc
+	ErrBlankFirestoreClient           = errors.New("err_blankclient")
 )
 
 type mergeSetOption struct {
@@ -115,8 +129,26 @@ func (q query) Documents(ctx context.Context) DocumentIterator {
 		DocumentIterator: q.Query.Documents(ctx),
 	}
 }
+func (q query) OrderBy(path string, direction Direction) Query {
+	return query{
+		Query: q.Query.OrderBy(path, direction),
+	}
+}
+
+func (q query) Offset(n int) Query {
+	return query{
+		Query: q.Query.Offset(n),
+	}
+}
+
+func (q query) Limit(n int) Query {
+	return query{
+		Query: q.Query.Limit(n),
+	}
+}
 
 type collectionRef struct {
+	query
 	*firestore.CollectionRef
 }
 
@@ -136,6 +168,31 @@ func (coll *collectionRef) Documents(ctx context.Context) DocumentIterator {
 	}
 }
 
+type writeBatch struct {
+	*firestore.WriteBatch
+}
+
+func (w *writeBatch) Set(ref DocumentRef, data interface{}, opts ...SetOption) WriteBatch {
+	fopts := make([]firestore.SetOption, len(opts))
+	for index, opt := range opts {
+		fopts[index] = opt.delegate()
+	}
+	return &writeBatch{
+		WriteBatch: w.WriteBatch.Set(ref.delegate(), data, fopts...),
+	}
+}
+
+func (w *writeBatch) Delete(ref DocumentRef) WriteBatch {
+	return &writeBatch{
+		WriteBatch: w.WriteBatch.Delete(ref.delegate()),
+	}
+}
+
+func (w *writeBatch) Commit(ctx context.Context) error {
+	_, err := w.WriteBatch.Commit(ctx)
+	return err
+}
+
 type client struct {
 	*firestore.Client
 }
@@ -151,6 +208,7 @@ func (c *client) Collection(path string) CollectionRef {
 		CollectionRef: c.Client.Collection(path),
 	}
 }
+
 func (c *client) GetAll(ctx context.Context, refs ...DocumentRef) ([]DocumentSnapshot, error) {
 	frefs := make([]*firestore.DocumentRef, len(refs))
 	for index, ref := range refs {
@@ -165,6 +223,12 @@ func (c *client) GetAll(ctx context.Context, refs ...DocumentRef) ([]DocumentSna
 		docs[index] = fdoc
 	}
 	return docs, nil
+}
+
+func (c *client) Batch() WriteBatch {
+	return &writeBatch{
+		WriteBatch: c.Client.Batch(),
+	}
 }
 
 func newFirestoreClient(projectID string) (*firestore.Client, error) {

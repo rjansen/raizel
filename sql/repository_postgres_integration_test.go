@@ -41,7 +41,7 @@ func (scenario *testRepositoryPostgresGet) setup(t *testing.T) {
 		driver          = "postgres"
 		dsn             = "postgres://postgres:@127.0.0.1:5432/postgres?sslmode=disable"
 		sqlDB, errSqlDB = sql.Open(driver, dsn)
-		db, errDB       = newDB(sqlDB)
+		db, errDB       = NewDB(sqlDB)
 		roots           = yggdrasil.NewRoots()
 		err             = Register(&roots, db)
 	)
@@ -139,7 +139,7 @@ func (scenario *testRepositoryPostgresSet) setup(t *testing.T) {
 		driver          = "postgres"
 		dsn             = "postgres://postgres:@127.0.0.1:5432/postgres?sslmode=disable"
 		sqlDB, errSqlDB = sql.Open(driver, dsn)
-		db, errDB       = newDB(sqlDB)
+		db, errDB       = NewDB(sqlDB)
 		roots           = yggdrasil.NewRoots()
 		err             = Register(&roots, db)
 	)
@@ -269,7 +269,7 @@ func (scenario *testRepositoryPostgresDelete) setup(t *testing.T) {
 		driver          = "postgres"
 		dsn             = "postgres://postgres:@127.0.0.1:5432/postgres?sslmode=disable"
 		sqlDB, errSqlDB = sql.Open(driver, dsn)
-		db, errDB       = newDB(sqlDB)
+		db, errDB       = NewDB(sqlDB)
 		roots           = yggdrasil.NewRoots()
 		err             = Register(&roots, db)
 	)
