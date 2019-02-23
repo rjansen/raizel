@@ -123,6 +123,37 @@ func (mock *documentSnapshotMock) Exists() bool {
 	return args.Bool(0)
 }
 
+type writeBatchMock struct {
+	mock.Mock
+}
+
+func (mock *writeBatchMock) Set(ref DocumentRef, data interface{}, options ...SetOption) WriteBatch {
+	var (
+		args   = mock.Called(ref, data, options)
+		result = args.Get(0)
+	)
+	if result == nil {
+		return nil
+	}
+	return result.(WriteBatch)
+}
+
+func (mock *writeBatchMock) Delete(ref DocumentRef) WriteBatch {
+	var (
+		args   = mock.Called(ref)
+		result = args.Get(0)
+	)
+	if result == nil {
+		return nil
+	}
+	return result.(WriteBatch)
+}
+
+func (mock *writeBatchMock) Commit(ctx context.Context) error {
+	args := mock.Called(ctx)
+	return args.Error(0)
+}
+
 type clientMock struct {
 	mock.Mock
 }
@@ -168,4 +199,15 @@ func (mock *clientMock) GetAll(ctx context.Context, refs ...DocumentRef) ([]Docu
 		return nil, err
 	}
 	return result.([]DocumentSnapshot), err
+}
+
+func (mock *clientMock) Batch() WriteBatch {
+	var (
+		args   = mock.Called()
+		result = args.Get(0)
+	)
+	if result == nil {
+		return nil
+	}
+	return result.(WriteBatch)
 }
