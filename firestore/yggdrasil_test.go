@@ -1,9 +1,11 @@
-package firestore
+package firestore_test
 
 import (
 	"fmt"
 	"testing"
 
+	"github.com/rjansen/raizel/firestore"
+	fmock "github.com/rjansen/raizel/firestore/mock"
 	"github.com/rjansen/yggdrasil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -11,7 +13,7 @@ import (
 
 type testRegister struct {
 	name   string
-	client Client
+	client firestore.Client
 	err    error
 }
 
@@ -19,7 +21,7 @@ func TestRegister(test *testing.T) {
 	scenarios := []testRegister{
 		{
 			name:   "Register the Client reference",
-			client: newClientMock(),
+			client: fmock.NewClientMock(),
 		},
 		{
 			name:   "Register a nil Client reference",
@@ -32,11 +34,11 @@ func TestRegister(test *testing.T) {
 			fmt.Sprintf("[%d]-%s", index, scenario.name),
 			func(t *testing.T) {
 				roots := yggdrasil.NewRoots()
-				err := Register(&roots, scenario.client)
+				err := firestore.Register(&roots, scenario.client)
 				assert.Equal(t, scenario.err, err)
 
 				tree := roots.NewTreeDefault()
-				client, err := tree.Reference(clientPath)
+				client, err := firestore.Reference(tree)
 
 				require.Nil(t, err, "tree reference error")
 				require.Exactly(t, scenario.client, client, "client reference")
@@ -66,13 +68,13 @@ func TestReference(test *testing.T) {
 		{
 			name: "Access the Client Reference",
 			references: map[yggdrasil.Path]yggdrasil.Reference{
-				clientPath: yggdrasil.NewReference(newClientMock()),
+				yggdrasil.NewPath("/raizel/firestore/client"): yggdrasil.NewReference(fmock.NewClientMock()),
 			},
 		},
 		{
 			name: "Access a nil Client Reference",
 			references: map[yggdrasil.Path]yggdrasil.Reference{
-				clientPath: yggdrasil.NewReference(nil),
+				yggdrasil.NewPath("/raizel/firestore/client"): yggdrasil.NewReference(nil),
 			},
 		},
 		{
@@ -82,9 +84,9 @@ func TestReference(test *testing.T) {
 		{
 			name: "When a invalid Client was register returns invalid reference error",
 			references: map[yggdrasil.Path]yggdrasil.Reference{
-				clientPath: yggdrasil.NewReference(new(struct{})),
+				yggdrasil.NewPath("/raizel/firestore/client"): yggdrasil.NewReference(new(struct{})),
 			},
-			err: ErrInvalidReference,
+			err: firestore.ErrInvalidReference,
 		},
 	}
 
@@ -94,18 +96,18 @@ func TestReference(test *testing.T) {
 			func(t *testing.T) {
 				scenario.setup(t)
 
-				_, err := Reference(scenario.tree)
+				_, err := firestore.Reference(scenario.tree)
 				assert.Equal(t, scenario.err, err, "reference error")
 				if scenario.err != nil {
 					assert.PanicsWithValue(t, scenario.err,
 						func() {
-							_ = MustReference(scenario.tree)
+							_ = firestore.MustReference(scenario.tree)
 						},
 					)
 				} else {
 					assert.NotPanics(t,
 						func() {
-							_ = MustReference(scenario.tree)
+							_ = firestore.MustReference(scenario.tree)
 						},
 					)
 				}

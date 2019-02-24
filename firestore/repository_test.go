@@ -1,4 +1,4 @@
-package firestore
+package firestore_test
 
 import (
 	"errors"
@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/rjansen/raizel"
+	"github.com/rjansen/raizel/firestore"
+	fmock "github.com/rjansen/raizel/firestore/mock"
 	"github.com/rjansen/yggdrasil"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -39,16 +41,16 @@ func (k testEntityKey) EntityName() string {
 }
 
 func TestNewRepository(test *testing.T) {
-	repository := NewRepository()
+	repository := firestore.NewRepository()
 	require.NotNil(test, repository, "invalid repository instance")
 }
 
 type testRepositoryGet struct {
 	name   string
 	tree   yggdrasil.Tree
-	ref    *documentRefMock
-	doc    *documentSnapshotMock
-	client *clientMock
+	ref    *fmock.DocumentRefMock
+	doc    *fmock.DocumentSnapshotMock
+	client *fmock.ClientMock
 	key    raizel.EntityKey
 	result raizel.Entity
 	err    error
@@ -56,11 +58,11 @@ type testRepositoryGet struct {
 
 func (scenario *testRepositoryGet) setup(t *testing.T) {
 	var (
-		ref   = newDocumentRefMock()
-		doc   = newDocumentSnapshotMock()
-		cli   = newClientMock()
+		ref   = fmock.NewDocumentRefMock()
+		doc   = fmock.NewDocumentSnapshotMock()
+		cli   = fmock.NewClientMock()
 		roots = yggdrasil.NewRoots()
-		err   = Register(&roots, cli)
+		err   = firestore.Register(&roots, cli)
 	)
 	require.NotNil(t, ref, "mock docref instance")
 	require.NotNil(t, doc, "mock doc instance")
@@ -68,7 +70,7 @@ func (scenario *testRepositoryGet) setup(t *testing.T) {
 	require.NotNil(t, roots, "roots instance")
 	require.Nil(t, err, "register client err")
 
-	doc.On("DataTo", mock.AnythingOfType("firestore.testEntity")).Return(nil)
+	doc.On("DataTo", mock.AnythingOfType("firestore_test.testEntity")).Return(nil)
 	ref.On("Get", mock.Anything).Return(doc, scenario.err)
 	cli.On("Doc", mock.AnythingOfType("string")).Return(ref)
 	cli.On("Close", mock.Anything).Return(nil)
@@ -106,7 +108,7 @@ func TestRepositoryGet(test *testing.T) {
 			func(t *testing.T) {
 				scenario.setup(t)
 
-				repository := NewRepository()
+				repository := firestore.NewRepository()
 				require.NotNil(t, repository, "repository instance")
 				err := repository.Get(scenario.tree, scenario.key, scenario.result)
 				require.Equal(t, scenario.err, err, "get error")
@@ -126,8 +128,8 @@ func TestRepositoryGet(test *testing.T) {
 type testRepositorySet struct {
 	name   string
 	tree   yggdrasil.Tree
-	ref    *documentRefMock
-	client *clientMock
+	ref    *fmock.DocumentRefMock
+	client *fmock.ClientMock
 	key    raizel.EntityKey
 	data   raizel.Entity
 	err    error
@@ -135,10 +137,10 @@ type testRepositorySet struct {
 
 func (scenario *testRepositorySet) setup(t *testing.T) {
 	var (
-		ref   = newDocumentRefMock()
-		cli   = newClientMock()
+		ref   = fmock.NewDocumentRefMock()
+		cli   = fmock.NewClientMock()
 		roots = yggdrasil.NewRoots()
-		err   = Register(&roots, cli)
+		err   = firestore.Register(&roots, cli)
 	)
 	require.NotNil(t, ref, "mock docref instance")
 	require.NotNil(t, cli, "mock client instance")
@@ -181,7 +183,7 @@ func TestRepositorySet(test *testing.T) {
 			func(t *testing.T) {
 				scenario.setup(t)
 
-				repository := NewRepository()
+				repository := firestore.NewRepository()
 				require.NotNil(t, repository, "repository instance")
 				err := repository.Set(scenario.tree, scenario.key, scenario.data)
 				require.Equal(t, scenario.err, err, "set error")
@@ -196,18 +198,18 @@ func TestRepositorySet(test *testing.T) {
 type testRepositoryDelete struct {
 	name   string
 	tree   yggdrasil.Tree
-	ref    *documentRefMock
-	client *clientMock
+	ref    *fmock.DocumentRefMock
+	client *fmock.ClientMock
 	key    raizel.EntityKey
 	err    error
 }
 
 func (scenario *testRepositoryDelete) setup(t *testing.T) {
 	var (
-		ref   = newDocumentRefMock()
-		cli   = newClientMock()
+		ref   = fmock.NewDocumentRefMock()
+		cli   = fmock.NewClientMock()
 		roots = yggdrasil.NewRoots()
-		err   = Register(&roots, cli)
+		err   = firestore.Register(&roots, cli)
 	)
 	require.NotNil(t, ref, "mock docref instance")
 	require.NotNil(t, cli, "mock client instance")
@@ -249,7 +251,7 @@ func TestRepositoryDelete(test *testing.T) {
 			func(t *testing.T) {
 				scenario.setup(t)
 
-				repository := NewRepository()
+				repository := firestore.NewRepository()
 				require.NotNil(t, repository, "repository instance")
 				err := repository.Delete(scenario.tree, scenario.key)
 				require.Equal(t, scenario.err, err, "set error")
