@@ -1,9 +1,9 @@
 package raizel
 
 import (
+	"context"
 	"testing"
 
-	"github.com/rjansen/yggdrasil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -38,13 +38,13 @@ func TestDynamicEntityKey(test *testing.T) {
 
 type repositoryMock struct{}
 
-func (repositoryMock) Get(yggdrasil.Tree, EntityKey, Entity) error { return nil }
-func (repositoryMock) Set(yggdrasil.Tree, EntityKey, Entity) error { return nil }
-func (repositoryMock) Delete(yggdrasil.Tree, EntityKey) error      { return nil }
-func (repositoryMock) Close(yggdrasil.Tree) error                  { return nil }
+func (repositoryMock) Get(context.Context, EntityKey, Entity) error { return nil }
+func (repositoryMock) Set(context.Context, EntityKey, Entity) error { return nil }
+func (repositoryMock) Delete(context.Context, EntityKey) error      { return nil }
+func (repositoryMock) Close(context.Context) error                  { return nil }
 
 type repositoryTest struct {
-	tree   yggdrasil.Tree
+	ctx    context.Context
 	key    EntityKey
 	result Entity
 	entity Entity
@@ -56,10 +56,10 @@ func TestRepository(test *testing.T) {
 		scenario              = repositoryTest{}
 	)
 	require.Implements(test, (*Repository)(nil), repository, "invalid repository type")
-	_ = repository.Get(scenario.tree, scenario.key, &scenario.result)
-	_ = repository.Set(scenario.tree, scenario.key, &scenario.entity)
-	_ = repository.Delete(scenario.tree, scenario.key)
-	_ = repository.Close(scenario.tree)
+	_ = repository.Get(scenario.ctx, scenario.key, &scenario.result)
+	_ = repository.Set(scenario.ctx, scenario.key, &scenario.entity)
+	_ = repository.Delete(scenario.ctx, scenario.key)
+	_ = repository.Close(scenario.ctx)
 }
 
 func TestErrNoyFound(test *testing.T) {

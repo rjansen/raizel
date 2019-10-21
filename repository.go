@@ -1,9 +1,8 @@
 package raizel
 
 import (
+	"context"
 	"errors"
-
-	"github.com/rjansen/yggdrasil"
 )
 
 var (
@@ -19,10 +18,10 @@ type EntityKey interface {
 type Entity interface{}
 
 type Repository interface {
-	Get(yggdrasil.Tree, EntityKey, Entity) error
-	Set(yggdrasil.Tree, EntityKey, Entity) error
-	Delete(yggdrasil.Tree, EntityKey) error
-	Close(yggdrasil.Tree) error
+	Get(ctx context.Context, key EntityKey, entity Entity) error
+	Set(ctx context.Context, key EntityKey, entity Entity) error
+	Delete(ctx context.Context, key EntityKey) error
+	Close(ctx context.Context) error
 }
 
 type dynamicEntityKey struct {
