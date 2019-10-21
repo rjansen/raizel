@@ -3,6 +3,7 @@
 package sql
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"testing"
@@ -11,7 +12,6 @@ import (
 	sqlbuilder "github.com/huandu/go-sqlbuilder"
 	_ "github.com/lib/pq"
 	"github.com/rjansen/raizel"
-	"github.com/rjansen/yggdrasil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,7 +28,8 @@ const (
 
 type testRepositoryPostgresGet struct {
 	name     string
-	tree     yggdrasil.Tree
+	ctx      context.Context
+	db       DB
 	mapper   Mapper
 	mockData *entityMock
 	key      entityKeyMock
@@ -42,13 +43,9 @@ func (scenario *testRepositoryPostgresGet) setup(t *testing.T) {
 		dsn             = "postgres://postgres:@127.0.0.1:5432/postgres?sslmode=disable"
 		sqlDB, errSqlDB = sql.Open(driver, dsn)
 		db, errDB       = NewDB(sqlDB)
-		roots           = yggdrasil.NewRoots()
-		err             = Register(&roots, db)
 	)
 	require.Nil(t, errSqlDB, "sqlopen error")
 	require.Nil(t, errDB, "newdb error")
-	require.Nil(t, err, "register db err")
-	require.NotNil(t, roots, "roots instance")
 	require.NotNil(t, db, "db instance")
 
 	if scenario.err == nil {
@@ -65,18 +62,18 @@ func (scenario *testRepositoryPostgresGet) setup(t *testing.T) {
 		scenario.key.value = scenario.mockData.ID
 	}
 
-	scenario.tree = roots.NewTreeDefault()
+	scenario.ctx = context.Background()
+	scenario.db = db
 }
 
 func (scenario *testRepositoryPostgresGet) tearDown(t *testing.T) {
 	if scenario.mockData != nil {
 		var (
-			db     = MustReference(scenario.tree)
-			_, err = db.Exec(psqlDeleteEntityMock, scenario.mockData.ID)
+			_, err = scenario.db.Exec(psqlDeleteEntityMock, scenario.mockData.ID)
 		)
 		require.Nil(t, err, "teardown error")
 	}
-	scenario.tree.Close()
+	scenario.db.Close()
 }
 
 func TestRepositoryPostgresGet(test *testing.T) {
@@ -115,9 +112,9 @@ func TestRepositoryPostgresGet(test *testing.T) {
 				scenario.setup(t)
 				defer scenario.tearDown(t)
 
-				repository := NewRepository(scenario.mapper)
+				repository := NewRepository(scenario.db, scenario.mapper)
 				require.NotNil(t, repository, "repository instance")
-				err := repository.Get(scenario.tree, scenario.key, scenario.result)
+				err := repository.Get(scenario.ctx, scenario.key, scenario.result)
 				require.Equal(t, scenario.err, err, "get error")
 			},
 		)
@@ -126,7 +123,8 @@ func TestRepositoryPostgresGet(test *testing.T) {
 
 type testRepositoryPostgresSet struct {
 	name     string
-	tree     yggdrasil.Tree
+	ctx      context.Context
+	db       DB
 	mapper   Mapper
 	mockData *entityMock
 	key      entityKeyMock
@@ -140,13 +138,9 @@ func (scenario *testRepositoryPostgresSet) setup(t *testing.T) {
 		dsn             = "postgres://postgres:@127.0.0.1:5432/postgres?sslmode=disable"
 		sqlDB, errSqlDB = sql.Open(driver, dsn)
 		db, errDB       = NewDB(sqlDB)
-		roots           = yggdrasil.NewRoots()
-		err             = Register(&roots, db)
 	)
 	require.Nil(t, errSqlDB, "sqlopen error")
 	require.Nil(t, errDB, "newdb error")
-	require.Nil(t, err, "register db err")
-	require.NotNil(t, roots, "roots instance")
 	require.NotNil(t, db, "db instance")
 
 	if scenario.mockData != nil {
@@ -163,20 +157,20 @@ func (scenario *testRepositoryPostgresSet) setup(t *testing.T) {
 		scenario.data.ID = scenario.mockData.ID
 	}
 
-	scenario.tree = roots.NewTreeDefault()
+	scenario.ctx = context.Background()
+	scenario.db = db
 }
 
 func (scenario *testRepositoryPostgresSet) tearDown(t *testing.T) {
-	db := MustReference(scenario.tree)
 	if scenario.mockData != nil {
-		_, err := db.Exec(psqlDeleteEntityMock, scenario.mockData.ID)
+		_, err := scenario.db.Exec(psqlDeleteEntityMock, scenario.mockData.ID)
 		require.Nil(t, err, "teardown mock error")
 	}
 	if scenario.data != nil {
-		_, err := db.Exec(psqlDeleteEntityMock, scenario.data.ID)
+		_, err := scenario.db.Exec(psqlDeleteEntityMock, scenario.data.ID)
 		require.Nil(t, err, "teardown data error")
 	}
-	scenario.tree.Close()
+	scenario.db.Close()
 }
 
 func TestRepositoryPostgresSet(test *testing.T) {
@@ -246,9 +240,9 @@ func TestRepositoryPostgresSet(test *testing.T) {
 				scenario.setup(t)
 				defer scenario.tearDown(t)
 
-				repository := NewRepository(scenario.mapper)
+				repository := NewRepository(scenario.db, scenario.mapper)
 				require.NotNil(t, repository, "repository instance")
-				err := repository.Set(scenario.tree, scenario.key, scenario.data)
+				err := repository.Set(scenario.ctx, scenario.key, scenario.data)
 				require.Equal(t, scenario.err, err, "set error")
 			},
 		)
@@ -257,7 +251,8 @@ func TestRepositoryPostgresSet(test *testing.T) {
 
 type testRepositoryPostgresDelete struct {
 	name     string
-	tree     yggdrasil.Tree
+	ctx      context.Context
+	db       DB
 	mapper   Mapper
 	mockData *entityMock
 	key      entityKeyMock
@@ -270,13 +265,9 @@ func (scenario *testRepositoryPostgresDelete) setup(t *testing.T) {
 		dsn             = "postgres://postgres:@127.0.0.1:5432/postgres?sslmode=disable"
 		sqlDB, errSqlDB = sql.Open(driver, dsn)
 		db, errDB       = NewDB(sqlDB)
-		roots           = yggdrasil.NewRoots()
-		err             = Register(&roots, db)
 	)
 	require.Nil(t, errSqlDB, "sqlopen error")
 	require.Nil(t, errDB, "newdb error")
-	require.Nil(t, err, "register db err")
-	require.NotNil(t, roots, "roots instance")
 	require.NotNil(t, db, "db instance")
 
 	if scenario.err == nil {
@@ -293,11 +284,12 @@ func (scenario *testRepositoryPostgresDelete) setup(t *testing.T) {
 		scenario.key.value = scenario.mockData.ID
 	}
 
-	scenario.tree = roots.NewTreeDefault()
+	scenario.ctx = context.Background()
+	scenario.db = db
 }
 
 func (scenario *testRepositoryPostgresDelete) tearDown(t *testing.T) {
-	scenario.tree.Close()
+	scenario.db.Close()
 }
 
 func TestRepositoryPostgresDelete(test *testing.T) {
@@ -330,9 +322,9 @@ func TestRepositoryPostgresDelete(test *testing.T) {
 				scenario.setup(t)
 				defer scenario.tearDown(t)
 
-				repository := NewRepository(scenario.mapper)
+				repository := NewRepository(scenario.db, scenario.mapper)
 				require.NotNil(t, repository, "repository instance")
-				err := repository.Delete(scenario.tree, scenario.key)
+				err := repository.Delete(scenario.ctx, scenario.key)
 				require.Equal(t, scenario.err, err, "set error")
 			},
 		)

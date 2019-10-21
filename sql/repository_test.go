@@ -1,25 +1,25 @@
 package sql
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
 
 	sqlbuilder "github.com/huandu/go-sqlbuilder"
 	"github.com/rjansen/raizel"
-	"github.com/rjansen/yggdrasil"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 func TestNewRepository(test *testing.T) {
-	repository := NewRepository(NewMapperBuilder().NewMapper())
+	repository := NewRepository(nil, NewMapperBuilder().NewMapper())
 	require.NotNil(test, repository, "invalid repository instance")
 }
 
 type testRepositoryGet struct {
 	name   string
-	tree   yggdrasil.Tree
+	ctx    context.Context
 	row    *rowMock
 	db     *dbMock
 	mapper Mapper
@@ -30,14 +30,11 @@ type testRepositoryGet struct {
 
 func (scenario *testRepositoryGet) setup(t *testing.T) {
 	var (
-		row   = newRowMock()
-		db    = newDBMock()
-		roots = yggdrasil.NewRoots()
-		err   = Register(&roots, db)
+		row = newRowMock()
+		db  = newDBMock()
 	)
+	require.NotNil(t, row, "mock row instance")
 	require.NotNil(t, db, "mock db instance")
-	require.NotNil(t, roots, "roots instance")
-	require.Nil(t, err, "register db err")
 
 	row.On("Scan", mock.Anything).Return(scenario.err)
 	db.On("QueryRow", mock.AnythingOfType("string"), mock.Anything).Return(row)
@@ -45,7 +42,7 @@ func (scenario *testRepositoryGet) setup(t *testing.T) {
 
 	scenario.row = row
 	scenario.db = db
-	scenario.tree = roots.NewTreeDefault()
+	scenario.ctx = context.Background()
 }
 
 func TestRepositoryGet(test *testing.T) {
@@ -82,11 +79,11 @@ func TestRepositoryGet(test *testing.T) {
 			func(t *testing.T) {
 				scenario.setup(t)
 
-				repository := NewRepository(scenario.mapper)
+				repository := NewRepository(scenario.db, scenario.mapper)
 				require.NotNil(t, repository, "repository instance")
-				err := repository.Get(scenario.tree, scenario.key, scenario.result)
+				err := repository.Get(scenario.ctx, scenario.key, scenario.result)
 				require.Equal(t, scenario.err, err, "get error")
-				err = repository.Close(scenario.tree)
+				err = repository.Close(scenario.ctx)
 				require.Nil(t, err, "close error")
 				scenario.db.AssertExpectations(t)
 				scenario.row.AssertExpectations(t)
@@ -97,7 +94,7 @@ func TestRepositoryGet(test *testing.T) {
 
 type testRepositorySet struct {
 	name   string
-	tree   yggdrasil.Tree
+	ctx    context.Context
 	result *resultMock
 	db     *dbMock
 	mapper Mapper
@@ -110,13 +107,9 @@ func (scenario *testRepositorySet) setup(t *testing.T) {
 	var (
 		result = newResultMock()
 		db     = newDBMock()
-		roots  = yggdrasil.NewRoots()
-		err    = Register(&roots, db)
 	)
 	require.NotNil(t, result, "mock result instance")
 	require.NotNil(t, db, "mock db instance")
-	require.NotNil(t, roots, "roots instance")
-	require.Nil(t, err, "register db err")
 
 	// result.On("LastInsertId").Return(1, nil)
 	// result.On("AffectedRows").Return(1, nil)
@@ -124,7 +117,7 @@ func (scenario *testRepositorySet) setup(t *testing.T) {
 	db.On("Close").Return(nil)
 
 	scenario.db = db
-	scenario.tree = roots.NewTreeDefault()
+	scenario.ctx = context.Background()
 }
 
 func TestRepositorySet(test *testing.T) {
@@ -161,11 +154,11 @@ func TestRepositorySet(test *testing.T) {
 			func(t *testing.T) {
 				scenario.setup(t)
 
-				repository := NewRepository(scenario.mapper)
+				repository := NewRepository(scenario.db, scenario.mapper)
 				require.NotNil(t, repository, "repository instance")
-				err := repository.Set(scenario.tree, scenario.key, scenario.data)
+				err := repository.Set(scenario.ctx, scenario.key, scenario.data)
 				require.Equal(t, scenario.err, err, "set error")
-				err = repository.Close(scenario.tree)
+				err = repository.Close(scenario.ctx)
 				require.Nil(t, err, "close error")
 				scenario.db.AssertExpectations(t)
 				// scenario.result.AssertExpectations(t)
@@ -176,7 +169,7 @@ func TestRepositorySet(test *testing.T) {
 
 type testRepositoryDelete struct {
 	name   string
-	tree   yggdrasil.Tree
+	ctx    context.Context
 	result *resultMock
 	db     *dbMock
 	mapper Mapper
@@ -189,13 +182,9 @@ func (scenario *testRepositoryDelete) setup(t *testing.T) {
 	var (
 		result = newResultMock()
 		db     = newDBMock()
-		roots  = yggdrasil.NewRoots()
-		err    = Register(&roots, db)
 	)
 	require.NotNil(t, result, "mock result instance")
 	require.NotNil(t, db, "mock db instance")
-	require.NotNil(t, roots, "roots instance")
-	require.Nil(t, err, "register db err")
 
 	// result.On("LastInsertId").Return(1, nil)
 	// result.On("AffectedRows").Return(1, nil)
@@ -203,7 +192,7 @@ func (scenario *testRepositoryDelete) setup(t *testing.T) {
 	db.On("Close").Return(nil)
 
 	scenario.db = db
-	scenario.tree = roots.NewTreeDefault()
+	scenario.ctx = context.Background()
 }
 
 func TestRepositoryDelete(test *testing.T) {
@@ -238,11 +227,11 @@ func TestRepositoryDelete(test *testing.T) {
 			func(t *testing.T) {
 				scenario.setup(t)
 
-				repository := NewRepository(scenario.mapper)
+				repository := NewRepository(scenario.db, scenario.mapper)
 				require.NotNil(t, repository, "repository instance")
-				err := repository.Delete(scenario.tree, scenario.key)
+				err := repository.Delete(scenario.ctx, scenario.key)
 				require.Equal(t, scenario.err, err, "set error")
-				repository.Close(scenario.tree)
+				repository.Close(scenario.ctx)
 				scenario.db.AssertExpectations(t)
 				// scenario.ref.AssertExpectations(t)
 			},
