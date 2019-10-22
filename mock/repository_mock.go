@@ -1,13 +1,13 @@
 package mock
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"time"
 
 	"github.com/rjansen/raizel"
-	"github.com/rjansen/yggdrasil"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -76,22 +76,22 @@ func NewMockRepository() *MockRepository {
 	return new(MockRepository)
 }
 
-func (mock *MockRepository) Get(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.Entity) error {
-	args := mock.Called(tree, key, entity)
+func (mock *MockRepository) Get(ctx context.Context, key raizel.EntityKey, entity raizel.Entity) error {
+	args := mock.Called(ctx, key, entity)
 	return args.Error(0)
 }
 
-func (mock *MockRepository) Set(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.Entity) error {
-	args := mock.Called(tree, key, entity)
+func (mock *MockRepository) Set(ctx context.Context, key raizel.EntityKey, entity raizel.Entity) error {
+	args := mock.Called(ctx, key, entity)
 	return args.Error(0)
 }
 
-func (mock *MockRepository) Delete(tree yggdrasil.Tree, key raizel.EntityKey) error {
-	args := mock.Called(tree, key)
+func (mock *MockRepository) Delete(ctx context.Context, key raizel.EntityKey) error {
+	args := mock.Called(ctx, key)
 	return args.Error(0)
 }
 
-func (mock *MockRepository) Close(yggdrasil.Tree) error {
+func (mock *MockRepository) Close(context.Context) error {
 	args := mock.Called()
 	return args.Error(0)
 }

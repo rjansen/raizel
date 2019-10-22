@@ -5,25 +5,25 @@ import (
 	"fmt"
 
 	"github.com/rjansen/raizel"
-	"github.com/rjansen/yggdrasil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 )
 
-type repository struct{}
+type repository struct {
+	client Client
+}
 
-func NewRepository() raizel.Repository {
-	return new(repository)
+func NewRepository(client Client) raizel.Repository {
+	return &repository{client: client}
 }
 
 func entityDocRef(key raizel.EntityKey) string {
 	return fmt.Sprintf("%s/%s", key.EntityName(), key.Value())
 }
 
-func (*repository) Get(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.Entity) error {
+func (r *repository) Get(ctx context.Context, key raizel.EntityKey, entity raizel.Entity) error {
 	var (
-		client   = MustReference(tree)
-		ref      = client.Doc(entityDocRef(key))
+		ref      = r.client.Doc(entityDocRef(key))
 		doc, err = ref.Get(context.Background())
 	)
 	if err != nil {
@@ -35,23 +35,20 @@ func (*repository) Get(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.
 	return doc.DataTo(entity)
 }
 
-func (*repository) Set(tree yggdrasil.Tree, key raizel.EntityKey, entity raizel.Entity) error {
+func (r *repository) Set(ctx context.Context, key raizel.EntityKey, entity raizel.Entity) error {
 	var (
-		client = MustReference(tree)
-		ref    = client.Doc(entityDocRef(key))
+		ref = r.client.Doc(entityDocRef(key))
 	)
 	return ref.Set(context.Background(), entity)
 }
 
-func (*repository) Delete(tree yggdrasil.Tree, key raizel.EntityKey) error {
+func (r *repository) Delete(ctx context.Context, key raizel.EntityKey) error {
 	var (
-		client = MustReference(tree)
-		ref    = client.Doc(entityDocRef(key))
+		ref = r.client.Doc(entityDocRef(key))
 	)
 	return ref.Delete(context.Background())
 }
 
-func (*repository) Close(tree yggdrasil.Tree) error {
-	var client = MustReference(tree)
-	return client.Close()
+func (r *repository) Close(ctx context.Context) error {
+	return r.client.Close()
 }
