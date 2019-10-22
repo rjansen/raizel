@@ -11,8 +11,6 @@ SQL_DSN           := $(SQL_DRIVER)://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@$(POS
 .PHONY: postgres.start
 postgres.start:
 	@echo "$(REPO) postgres.start"
-	@#docker run --rm -d --name postgres-run -p $(POSTGRES_PORT):$(POSTGRES_PORT) \
-	@#	-v "$(POSTGRES_SCRIPTS_DIR):/docker-entrypoint-initdb.d" postgres:$(POSTGRES_VERSION)
 	@docker run --rm -d --name postgres-run -p $(POSTGRES_PORT):$(POSTGRES_PORT) postgres:$(POSTGRES_VERSION)
 
 .PHONY: postgres.kill
