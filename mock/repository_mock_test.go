@@ -1,10 +1,10 @@
 package mock
 
 import (
+	"context"
 	"testing"
 	"time"
 
-	"github.com/rjansen/yggdrasil"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -40,8 +40,7 @@ func TestObject(t *testing.T) {
 
 func TestMockRepository(t *testing.T) {
 	var (
-		roots      = yggdrasil.NewRoots()
-		tree       = roots.NewTreeDefault()
+		ctx        = context.Background()
 		repository = NewMockRepository()
 		key        = NewMockEntityKey()
 		entity     = NewMockEntity()
@@ -50,8 +49,8 @@ func TestMockRepository(t *testing.T) {
 	key.On("EntityName").Return("mockEntityName")
 	key.On("Name").Return("mockKeyName")
 	key.On("Value").Return("mockKeyValue")
-	repository.On("Set", tree, mock.Anything, mock.Anything).Return(nil)
-	repository.On("Get", tree, mock.Anything, result).Run(
+	repository.On("Set", ctx, mock.Anything, mock.Anything).Return(nil)
+	repository.On("Get", ctx, mock.Anything, result).Run(
 		func(args mock.Arguments) {
 			getKey := args.Get(1).(*MockEntityKey)
 			require.NotZero(t, getKey.EntityName(), "key.entityname invalid instance")
@@ -61,14 +60,14 @@ func TestMockRepository(t *testing.T) {
 			*entityResult = *entity
 		},
 	).Return(nil)
-	repository.On("Delete", tree, mock.Anything).Return(nil)
+	repository.On("Delete", ctx, mock.Anything).Return(nil)
 	repository.On("Close", mock.Anything).Return(nil)
 
-	repository.Set(tree, key, entity)
-	repository.Get(tree, key, result)
+	repository.Set(ctx, key, entity)
+	repository.Get(ctx, key, result)
 	require.Exactly(t, entity, result, "get invalid instance")
-	repository.Delete(tree, key)
-	repository.Close(tree)
+	repository.Delete(ctx, key)
+	repository.Close(ctx)
 
 	repository.AssertExpectations(t)
 }

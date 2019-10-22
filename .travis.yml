@@ -3,18 +3,23 @@ sudo: true
 
 go:
     - 1.11.x
+    - 1.12.x
+    - 1.13.x
 
-install: sudo make deps
+env:
+  - OS=linux ARCH=amd64 TMP_DIR=/tmp
+
+install: sudo make codecov.install gotestsum.install
 
 before_script:
     - sudo /etc/init.d/postgresql stop
-    - make postgres.run firestore.decodekeycontent
+    - make postgres.start firestore.start postgres.scripts
 
 script: make ci
 
-# after_script: make postgres.kill
+# after_script: make postgres.kill firestore.kill
 
-after_success: make coverage.push
+after_success: make codecov.push
 
 notifications:
     email:

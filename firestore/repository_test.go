@@ -1,6 +1,7 @@
 package firestore_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -9,7 +10,6 @@ import (
 	"github.com/rjansen/raizel"
 	"github.com/rjansen/raizel/firestore"
 	fmock "github.com/rjansen/raizel/firestore/mock"
-	"github.com/rjansen/yggdrasil"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -41,13 +41,13 @@ func (k testEntityKey) EntityName() string {
 }
 
 func TestNewRepository(test *testing.T) {
-	repository := firestore.NewRepository()
+	repository := firestore.NewRepository(nil)
 	require.NotNil(test, repository, "invalid repository instance")
 }
 
 type testRepositoryGet struct {
 	name   string
-	tree   yggdrasil.Tree
+	ctx    context.Context
 	ref    *fmock.DocumentRefMock
 	doc    *fmock.DocumentSnapshotMock
 	client *fmock.ClientMock
@@ -58,17 +58,13 @@ type testRepositoryGet struct {
 
 func (scenario *testRepositoryGet) setup(t *testing.T) {
 	var (
-		ref   = fmock.NewDocumentRefMock()
-		doc   = fmock.NewDocumentSnapshotMock()
-		cli   = fmock.NewClientMock()
-		roots = yggdrasil.NewRoots()
-		err   = firestore.Register(&roots, cli)
+		ref = fmock.NewDocumentRefMock()
+		doc = fmock.NewDocumentSnapshotMock()
+		cli = fmock.NewClientMock()
 	)
 	require.NotNil(t, ref, "mock docref instance")
 	require.NotNil(t, doc, "mock doc instance")
 	require.NotNil(t, cli, "mock client instance")
-	require.NotNil(t, roots, "roots instance")
-	require.Nil(t, err, "register client err")
 
 	doc.On("DataTo", mock.AnythingOfType("firestore_test.testEntity")).Return(nil)
 	ref.On("Get", mock.Anything).Return(doc, scenario.err)
@@ -78,7 +74,7 @@ func (scenario *testRepositoryGet) setup(t *testing.T) {
 	scenario.ref = ref
 	scenario.doc = doc
 	scenario.client = cli
-	scenario.tree = roots.NewTreeDefault()
+	scenario.ctx = context.Background()
 }
 
 func TestRepositoryGet(test *testing.T) {
@@ -108,11 +104,11 @@ func TestRepositoryGet(test *testing.T) {
 			func(t *testing.T) {
 				scenario.setup(t)
 
-				repository := firestore.NewRepository()
+				repository := firestore.NewRepository(scenario.client)
 				require.NotNil(t, repository, "repository instance")
-				err := repository.Get(scenario.tree, scenario.key, scenario.result)
+				err := repository.Get(scenario.ctx, scenario.key, scenario.result)
 				require.Equal(t, scenario.err, err, "get error")
-				repository.Close(scenario.tree)
+				repository.Close(scenario.ctx)
 				scenario.client.AssertExpectations(t)
 				scenario.ref.AssertExpectations(t)
 				if scenario.err == nil {
@@ -127,7 +123,7 @@ func TestRepositoryGet(test *testing.T) {
 
 type testRepositorySet struct {
 	name   string
-	tree   yggdrasil.Tree
+	ctx    context.Context
 	ref    *fmock.DocumentRefMock
 	client *fmock.ClientMock
 	key    raizel.EntityKey
@@ -137,15 +133,11 @@ type testRepositorySet struct {
 
 func (scenario *testRepositorySet) setup(t *testing.T) {
 	var (
-		ref   = fmock.NewDocumentRefMock()
-		cli   = fmock.NewClientMock()
-		roots = yggdrasil.NewRoots()
-		err   = firestore.Register(&roots, cli)
+		ref = fmock.NewDocumentRefMock()
+		cli = fmock.NewClientMock()
 	)
 	require.NotNil(t, ref, "mock docref instance")
 	require.NotNil(t, cli, "mock client instance")
-	require.NotNil(t, roots, "roots instance")
-	require.Nil(t, err, "register client err")
 
 	ref.On("Set", mock.Anything, mock.Anything, mock.AnythingOfType("[]firestore.SetOption")).Return(scenario.err)
 	cli.On("Doc", mock.AnythingOfType("string")).Return(ref)
@@ -153,7 +145,7 @@ func (scenario *testRepositorySet) setup(t *testing.T) {
 
 	scenario.ref = ref
 	scenario.client = cli
-	scenario.tree = roots.NewTreeDefault()
+	scenario.ctx = context.Background()
 }
 
 func TestRepositorySet(test *testing.T) {
@@ -183,11 +175,11 @@ func TestRepositorySet(test *testing.T) {
 			func(t *testing.T) {
 				scenario.setup(t)
 
-				repository := firestore.NewRepository()
+				repository := firestore.NewRepository(scenario.client)
 				require.NotNil(t, repository, "repository instance")
-				err := repository.Set(scenario.tree, scenario.key, scenario.data)
+				err := repository.Set(scenario.ctx, scenario.key, scenario.data)
 				require.Equal(t, scenario.err, err, "set error")
-				repository.Close(scenario.tree)
+				repository.Close(scenario.ctx)
 				scenario.client.AssertExpectations(t)
 				scenario.ref.AssertExpectations(t)
 			},
@@ -197,7 +189,7 @@ func TestRepositorySet(test *testing.T) {
 
 type testRepositoryDelete struct {
 	name   string
-	tree   yggdrasil.Tree
+	ctx    context.Context
 	ref    *fmock.DocumentRefMock
 	client *fmock.ClientMock
 	key    raizel.EntityKey
@@ -206,15 +198,11 @@ type testRepositoryDelete struct {
 
 func (scenario *testRepositoryDelete) setup(t *testing.T) {
 	var (
-		ref   = fmock.NewDocumentRefMock()
-		cli   = fmock.NewClientMock()
-		roots = yggdrasil.NewRoots()
-		err   = firestore.Register(&roots, cli)
+		ref = fmock.NewDocumentRefMock()
+		cli = fmock.NewClientMock()
 	)
 	require.NotNil(t, ref, "mock docref instance")
 	require.NotNil(t, cli, "mock client instance")
-	require.NotNil(t, roots, "roots instance")
-	require.Nil(t, err, "register client err")
 
 	ref.On("Delete", mock.Anything).Return(scenario.err)
 	cli.On("Doc", mock.AnythingOfType("string")).Return(ref)
@@ -222,7 +210,7 @@ func (scenario *testRepositoryDelete) setup(t *testing.T) {
 
 	scenario.ref = ref
 	scenario.client = cli
-	scenario.tree = roots.NewTreeDefault()
+	scenario.ctx = context.Background()
 }
 
 func TestRepositoryDelete(test *testing.T) {
@@ -251,11 +239,11 @@ func TestRepositoryDelete(test *testing.T) {
 			func(t *testing.T) {
 				scenario.setup(t)
 
-				repository := firestore.NewRepository()
+				repository := firestore.NewRepository(scenario.client)
 				require.NotNil(t, repository, "repository instance")
-				err := repository.Delete(scenario.tree, scenario.key)
+				err := repository.Delete(scenario.ctx, scenario.key)
 				require.Equal(t, scenario.err, err, "set error")
-				repository.Close(scenario.tree)
+				repository.Close(scenario.ctx)
 				scenario.client.AssertExpectations(t)
 				scenario.ref.AssertExpectations(t)
 			},

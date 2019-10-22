@@ -9,18 +9,18 @@ import (
 	"time"
 
 	"github.com/rjansen/raizel"
-	"github.com/rjansen/yggdrasil"
 	"github.com/stretchr/testify/require"
 )
 
 const (
-	testProjectID  = "e-pedion"
+	testProjectID  = "fivecolors-205417"
 	testCollection = "environments/test/entity_mock"
 )
 
 type testRepositoryFirestoreGet struct {
 	name     string
-	tree     yggdrasil.Tree
+	client   Client
+	ctx      context.Context
 	mockData *entityMock
 	key      entityKeyMock
 	result   raizel.Entity
@@ -31,13 +31,9 @@ func (scenario *testRepositoryFirestoreGet) setup(t *testing.T) {
 	var (
 		fclient, errFclient = newFirestoreClient(testProjectID)
 		client, errClient   = newClient(fclient)
-		roots               = yggdrasil.NewRoots()
-		err                 = Register(&roots, client)
 	)
 	require.Nil(t, errFclient, "new firestore error")
 	require.Nil(t, errClient, "new client error")
-	require.Nil(t, err, "register client err")
-	require.NotNil(t, roots, "roots instance")
 	require.NotNil(t, client, "client instance")
 
 	if scenario.err == nil {
@@ -58,20 +54,20 @@ func (scenario *testRepositoryFirestoreGet) setup(t *testing.T) {
 		scenario.key.value = scenario.mockData.ID
 	}
 
-	scenario.tree = roots.NewTreeDefault()
+	scenario.ctx = context.Background()
+	scenario.client = client
 }
 
 func (scenario *testRepositoryFirestoreGet) tearDown(t *testing.T) {
 	if scenario.mockData != nil {
 		var (
-			client = MustReference(scenario.tree)
-			err    = client.Doc(
+			err = scenario.client.Doc(
 				entityMockRef(testCollection, scenario.mockData.ID),
 			).Delete(context.Background())
 		)
 		require.Nil(t, err, "teardown error")
 	}
-	scenario.tree.Close()
+	scenario.client.Close()
 }
 
 func TestRepositoryFirestoreGet(test *testing.T) {
@@ -102,9 +98,11 @@ func TestRepositoryFirestoreGet(test *testing.T) {
 				scenario.setup(t)
 				defer scenario.tearDown(t)
 
-				repository := NewRepository()
+				repository := NewRepository(scenario.client)
 				require.NotNil(t, repository, "repository instance")
-				err := repository.Get(scenario.tree, scenario.key, scenario.result)
+				fmt.Println("get")
+				err := repository.Get(scenario.ctx, scenario.key, scenario.result)
+				fmt.Println("end")
 				require.Equal(t, scenario.err, err, "get error")
 			},
 		)
@@ -113,7 +111,8 @@ func TestRepositoryFirestoreGet(test *testing.T) {
 
 type testRepositoryFirestoreSet struct {
 	name     string
-	tree     yggdrasil.Tree
+	ctx      context.Context
+	client   Client
 	mockData *entityMock
 	key      entityKeyMock
 	data     *entityMock
@@ -124,13 +123,9 @@ func (scenario *testRepositoryFirestoreSet) setup(t *testing.T) {
 	var (
 		fclient, errFclient = newFirestoreClient(testProjectID)
 		client, errClient   = newClient(fclient)
-		roots               = yggdrasil.NewRoots()
-		err                 = Register(&roots, client)
 	)
 	require.Nil(t, errFclient, "new firestore error")
 	require.Nil(t, errClient, "new client error")
-	require.Nil(t, err, "register client err")
-	require.NotNil(t, roots, "roots instance")
 	require.NotNil(t, client, "client instance")
 
 	if scenario.mockData != nil {
@@ -143,24 +138,24 @@ func (scenario *testRepositoryFirestoreSet) setup(t *testing.T) {
 		scenario.data.ID = scenario.mockData.ID
 	}
 
-	scenario.tree = roots.NewTreeDefault()
+	scenario.ctx = context.Background()
+	scenario.client = client
 }
 
 func (scenario *testRepositoryFirestoreSet) tearDown(t *testing.T) {
-	client := MustReference(scenario.tree)
 	if scenario.mockData != nil {
-		err := client.Doc(
+		err := scenario.client.Doc(
 			entityMockRef(testCollection, scenario.mockData.ID),
 		).Delete(context.Background())
 		require.Nil(t, err, "teardown mock error")
 	}
 	if scenario.data != nil {
-		err := client.Doc(
+		err := scenario.client.Doc(
 			entityMockRef(testCollection, scenario.data.ID),
 		).Delete(context.Background())
 		require.Nil(t, err, "teardown data error")
 	}
-	scenario.tree.Close()
+	scenario.client.Close()
 }
 
 func TestRepositoryFirestoreSet(test *testing.T) {
@@ -228,9 +223,9 @@ func TestRepositoryFirestoreSet(test *testing.T) {
 				scenario.setup(t)
 				defer scenario.tearDown(t)
 
-				repository := NewRepository()
+				repository := NewRepository(scenario.client)
 				require.NotNil(t, repository, "repository instance")
-				err := repository.Set(scenario.tree, scenario.key, scenario.data)
+				err := repository.Set(scenario.ctx, scenario.key, scenario.data)
 				require.Equal(t, scenario.err, err, "set error")
 			},
 		)
@@ -239,7 +234,8 @@ func TestRepositoryFirestoreSet(test *testing.T) {
 
 type testRepositoryFirestoreDelete struct {
 	name     string
-	tree     yggdrasil.Tree
+	ctx      context.Context
+	client   Client
 	mockData *entityMock
 	key      entityKeyMock
 	err      error
@@ -249,13 +245,9 @@ func (scenario *testRepositoryFirestoreDelete) setup(t *testing.T) {
 	var (
 		fclient, errFclient = newFirestoreClient(testProjectID)
 		client, errClient   = newClient(fclient)
-		roots               = yggdrasil.NewRoots()
-		err                 = Register(&roots, client)
 	)
 	require.Nil(t, errFclient, "new firestore error")
 	require.Nil(t, errClient, "new client error")
-	require.Nil(t, err, "register client err")
-	require.NotNil(t, roots, "roots instance")
 	require.NotNil(t, client, "client instance")
 
 	if scenario.mockData != nil {
@@ -267,20 +259,20 @@ func (scenario *testRepositoryFirestoreDelete) setup(t *testing.T) {
 		scenario.key.value = scenario.mockData.ID
 	}
 
-	scenario.tree = roots.NewTreeDefault()
+	scenario.ctx = context.Background()
+	scenario.client = client
 }
 
 func (scenario *testRepositoryFirestoreDelete) tearDown(t *testing.T) {
 	if scenario.mockData != nil {
 		var (
-			client = MustReference(scenario.tree)
-			err    = client.Doc(
+			err = scenario.client.Doc(
 				entityMockRef(testCollection, scenario.mockData.ID),
 			).Delete(context.Background())
 		)
 		require.Nil(t, err, "teardown error")
 	}
-	scenario.tree.Close()
+	scenario.client.Close()
 }
 
 func TestRepositoryFirestoreDelete(test *testing.T) {
@@ -310,9 +302,9 @@ func TestRepositoryFirestoreDelete(test *testing.T) {
 				scenario.setup(t)
 				defer scenario.tearDown(t)
 
-				repository := NewRepository()
+				repository := NewRepository(scenario.client)
 				require.NotNil(t, repository, "repository instance")
-				err := repository.Delete(scenario.tree, scenario.key)
+				err := repository.Delete(scenario.ctx, scenario.key)
 				require.Equal(t, scenario.err, err, "set error")
 			},
 		)

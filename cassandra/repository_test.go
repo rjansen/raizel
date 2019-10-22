@@ -1,13 +1,13 @@
 package cassandra
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/rjansen/raizel"
-	"github.com/rjansen/yggdrasil"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -39,13 +39,13 @@ func (k testEntityKey) Name() string {
 }
 
 func TestNewRepository(test *testing.T) {
-	repository := NewRepository()
+	repository := NewRepository(nil)
 	require.NotNil(test, repository, "invalid repository instance")
 }
 
 type testRepositoryGet struct {
 	name    string
-	tree    yggdrasil.Tree
+	ctx     context.Context
 	query   *queryMock
 	session *sessionMock
 	key     raizel.EntityKey
@@ -57,12 +57,9 @@ func (scenario *testRepositoryGet) setup(t *testing.T) {
 	var (
 		query   = newQueryMock()
 		session = newSessionMock()
-		roots   = yggdrasil.NewRoots()
-		err     = Register(&roots, session)
 	)
+	require.NotNil(t, query, "mock query instance")
 	require.NotNil(t, session, "mock session instance")
-	require.NotNil(t, roots, "roots instance")
-	require.Nil(t, err, "register session err")
 
 	query.On("Scan", mock.Anything).Return(scenario.err)
 	// query.On("delegate").Return(new(gocql.Query))
@@ -71,7 +68,7 @@ func (scenario *testRepositoryGet) setup(t *testing.T) {
 
 	scenario.query = query
 	scenario.session = session
-	scenario.tree = roots.NewTreeDefault()
+	scenario.ctx = context.Background()
 }
 
 func TestRepositoryGet(test *testing.T) {
@@ -102,11 +99,11 @@ func TestRepositoryGet(test *testing.T) {
 			func(t *testing.T) {
 				scenario.setup(t)
 
-				repository := NewRepository()
+				repository := NewRepository(scenario.session)
 				require.NotNil(t, repository, "repository instance")
-				err := repository.Get(scenario.tree, scenario.key, scenario.result)
+				err := repository.Get(scenario.ctx, scenario.key, scenario.result)
 				require.Equal(t, scenario.err, err, "get error")
-				err = repository.Close(scenario.tree)
+				err = repository.Close(scenario.ctx)
 				require.Nil(t, err, "close error")
 				scenario.session.AssertExpectations(t)
 				scenario.query.AssertExpectations(t)
@@ -117,7 +114,7 @@ func TestRepositoryGet(test *testing.T) {
 
 type testRepositorySet struct {
 	name    string
-	tree    yggdrasil.Tree
+	ctx     context.Context
 	query   *queryMock
 	session *sessionMock
 	key     raizel.EntityKey
@@ -129,12 +126,9 @@ func (scenario *testRepositorySet) setup(t *testing.T) {
 	var (
 		query   = newQueryMock()
 		session = newSessionMock()
-		roots   = yggdrasil.NewRoots()
-		err     = Register(&roots, session)
 	)
+	require.NotNil(t, query, "mock query instance")
 	require.NotNil(t, session, "mock session instance")
-	require.NotNil(t, roots, "roots instance")
-	require.Nil(t, err, "register session err")
 
 	query.On("Exec").Return(scenario.err)
 	// query.On("delegate").Return(new(gocql.Query))
@@ -143,7 +137,7 @@ func (scenario *testRepositorySet) setup(t *testing.T) {
 
 	scenario.query = query
 	scenario.session = session
-	scenario.tree = roots.NewTreeDefault()
+	scenario.ctx = context.Background()
 }
 
 func TestRepositorySet(test *testing.T) {
@@ -174,11 +168,11 @@ func TestRepositorySet(test *testing.T) {
 			func(t *testing.T) {
 				scenario.setup(t)
 
-				repository := NewRepository()
+				repository := NewRepository(scenario.session)
 				require.NotNil(t, repository, "repository instance")
-				err := repository.Set(scenario.tree, scenario.key, scenario.data)
+				err := repository.Set(scenario.ctx, scenario.key, scenario.data)
 				require.Equal(t, scenario.err, err, "set error")
-				err = repository.Close(scenario.tree)
+				err = repository.Close(scenario.ctx)
 				require.Nil(t, err, "close error")
 				scenario.session.AssertExpectations(t)
 				scenario.query.AssertExpectations(t)
@@ -189,7 +183,7 @@ func TestRepositorySet(test *testing.T) {
 
 type testRepositoryDelete struct {
 	name    string
-	tree    yggdrasil.Tree
+	ctx     context.Context
 	query   *queryMock
 	session *sessionMock
 	key     raizel.EntityKey
@@ -201,12 +195,9 @@ func (scenario *testRepositoryDelete) setup(t *testing.T) {
 	var (
 		query   = newQueryMock()
 		session = newSessionMock()
-		roots   = yggdrasil.NewRoots()
-		err     = Register(&roots, session)
 	)
+	require.NotNil(t, query, "mock query instance")
 	require.NotNil(t, session, "mock session instance")
-	require.NotNil(t, roots, "roots instance")
-	require.Nil(t, err, "register session err")
 
 	query.On("Exec").Return(scenario.err)
 	// query.On("delegate").Return(new(gocql.Query))
@@ -215,7 +206,7 @@ func (scenario *testRepositoryDelete) setup(t *testing.T) {
 
 	scenario.query = query
 	scenario.session = session
-	scenario.tree = roots.NewTreeDefault()
+	scenario.ctx = context.Background()
 }
 
 func TestRepositoryDelete(test *testing.T) {
@@ -244,11 +235,11 @@ func TestRepositoryDelete(test *testing.T) {
 			func(t *testing.T) {
 				scenario.setup(t)
 
-				repository := NewRepository()
+				repository := NewRepository(scenario.session)
 				require.NotNil(t, repository, "repository instance")
-				err := repository.Delete(scenario.tree, scenario.key)
+				err := repository.Delete(scenario.ctx, scenario.key)
 				require.Equal(t, scenario.err, err, "set error")
-				repository.Close(scenario.tree)
+				repository.Close(scenario.ctx)
 				scenario.session.AssertExpectations(t)
 				scenario.query.AssertExpectations(t)
 			},

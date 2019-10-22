@@ -3,6 +3,7 @@ package firestore
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"cloud.google.com/go/firestore"
 )
@@ -81,6 +82,7 @@ func (doc *documentRef) delegate() *firestore.DocumentRef {
 }
 
 func (doc *documentRef) Get(ctx context.Context) (DocumentSnapshot, error) {
+	fmt.Println("firestore_get")
 	return doc.DocumentRef.Get(ctx)
 }
 
@@ -232,6 +234,8 @@ func (c *client) Batch() WriteBatch {
 }
 
 func newFirestoreClient(projectID string) (*firestore.Client, error) {
+	fmt.Println("begin_firestore_client")
+	defer fmt.Println("end_firestore_client")
 	return firestore.NewClient(context.Background(), projectID)
 }
 

@@ -7,12 +7,15 @@ import (
 	"time"
 
 	"cloud.google.com/go/firestore"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	pb "google.golang.org/genproto/googleapis/firestore/v1beta1"
+	pb "google.golang.org/genproto/googleapis/firestore/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+const rootDocumentsMock = "projects/projectID/databases/(default)/documents/"
 
 type testClient struct {
 	name   string
@@ -126,8 +129,8 @@ func TestSetDocumentRef(test *testing.T) {
 					scenario.client.Doc(scenario.path),
 				}
 				err := ref.Set(context.Background(), scenario.data, scenario.options...)
-				require.Equal(t, grpc.Code(scenario.err), grpc.Code(err), "set invalid grpccode")
-				require.Equal(t, grpc.ErrorDesc(scenario.err), grpc.ErrorDesc(err), "set invalid grpcdesc")
+				require.Equalf(t, grpc.Code(scenario.err), grpc.Code(err), "invalid grpccode: error=%+v", err)
+				require.Equalf(t, grpc.ErrorDesc(scenario.err), grpc.ErrorDesc(err), "invalid grpcdesc: error=%v", err)
 			},
 		)
 	}
@@ -183,8 +186,8 @@ func TestDeleteDocumentRef(test *testing.T) {
 				ref := scenario.client.Doc(scenario.path)
 				require.NotNil(t, ref, "invalid reference")
 				err := ref.Delete(context.Background())
-				require.Equal(t, grpc.Code(scenario.err), grpc.Code(err), "delete invalid grpccode")
-				require.Equal(t, grpc.ErrorDesc(scenario.err), grpc.ErrorDesc(err), "delete invalid grpcdesc")
+				require.Equalf(t, grpc.Code(scenario.err), grpc.Code(err), "invalid grpccode: error=%+v", err)
+				require.Equalf(t, grpc.ErrorDesc(scenario.err), grpc.ErrorDesc(err), "invalid grpcdesc: error=%v", err)
 			},
 		)
 	}
@@ -212,7 +215,7 @@ func (scenario *testGetDocumentRef) setup(t *testing.T) {
 				&pb.BatchGetDocumentsResponse{
 					Result: &pb.BatchGetDocumentsResponse_Found{
 						Found: &pb.Document{
-							Name:       scenario.path,
+							Name:       rootDocumentsMock + scenario.path,
 							CreateTime: aTimestamp,
 							UpdateTime: aTimestamp,
 							Fields:     scenario.data,
@@ -250,12 +253,10 @@ func TestGetDocumentRef(test *testing.T) {
 			fmt.Sprintf("[%d]-%s", index, scenario.name),
 			func(t *testing.T) {
 				scenario.setup(t)
-				ref := documentRef{
-					scenario.client.Doc(scenario.path),
-				}
+				ref := documentRef{scenario.client.Doc(scenario.path)}
 				_, err := ref.Get(context.Background())
-				require.Equal(t, grpc.Code(scenario.err), grpc.Code(err), "get invalid grpccode")
-				require.Equal(t, grpc.ErrorDesc(scenario.err), grpc.ErrorDesc(err), "get invalid grpcdesc")
+				assert.Equalf(t, grpc.Code(scenario.err), grpc.Code(err), "invalid grpccode: error=%+v", err)
+				assert.Equalf(t, grpc.ErrorDesc(scenario.err), grpc.ErrorDesc(err), "invalid grpcdesc: error=%v", err)
 			},
 		)
 	}
@@ -290,7 +291,7 @@ func (scenario *testGetAllDocumentRef) setup(t *testing.T) {
 			mockResults[index] = &pb.BatchGetDocumentsResponse{
 				Result: &pb.BatchGetDocumentsResponse_Found{
 					Found: &pb.Document{
-						Name:       path,
+						Name:       rootDocumentsMock + path,
 						CreateTime: aTimestamp,
 						UpdateTime: aTimestamp,
 						Fields:     scenario.data[index],
@@ -340,8 +341,8 @@ func TestGetAllDocumentRef(test *testing.T) {
 					context.Background(),
 					scenario.references...,
 				)
-				require.Equal(t, grpc.Code(scenario.err), grpc.Code(err), "getall invalid grpccode")
-				require.Equal(t, grpc.ErrorDesc(scenario.err), grpc.ErrorDesc(err), "getall invalid grpcdesc")
+				require.Equalf(t, grpc.Code(scenario.err), grpc.Code(err), "invalid grpccode: error=%+v", err)
+				require.Equalf(t, grpc.ErrorDesc(scenario.err), grpc.ErrorDesc(err), "invalid grpcdesc: error=%v", err)
 				if scenario.err == nil {
 					require.Len(t, docs, len(scenario.paths), "invalid result documents size")
 				} else {
@@ -435,8 +436,8 @@ func TestCollectionDocuments(test *testing.T) {
 				scenario.setup(t)
 				collection := scenario.raizelClient.Collection(scenario.collection)
 				documents, err := collection.Documents(context.Background()).GetAll()
-				require.Equalf(t, grpc.Code(scenario.err), grpc.Code(err), "get invalid grpccode: err=%+v", err)
-				require.Equal(t, grpc.ErrorDesc(scenario.err), grpc.ErrorDesc(err), "get invalid grpcdesc")
+				require.Equalf(t, grpc.Code(scenario.err), grpc.Code(err), "invalid grpccode: error=%+v", err)
+				require.Equalf(t, grpc.ErrorDesc(scenario.err), grpc.ErrorDesc(err), "invalid grpcdesc: error=%v", err)
 				if err == nil {
 					require.NotZerof(t, documents, "documents response invalid: %+v", documents)
 					require.NotEmpty(t, documents, "documents len invalid: %+v", documents)
@@ -769,8 +770,8 @@ func TestQuery(test *testing.T) {
 					query = query.Limit(scenario.query.limit)
 				}
 				documents, err := query.Documents(context.Background()).GetAll()
-				require.Equalf(t, grpc.Code(scenario.err), grpc.Code(err), "get invalid grpccode: err=%+v", err)
-				require.Equal(t, grpc.ErrorDesc(scenario.err), grpc.ErrorDesc(err), "get invalid grpcdesc")
+				require.Equalf(t, grpc.Code(scenario.err), grpc.Code(err), "invalid grpccode: error=%+v", err)
+				require.Equalf(t, grpc.ErrorDesc(scenario.err), grpc.ErrorDesc(err), "invalid grpcdesc: error=%v", err)
 				if err == nil {
 					require.NotZerof(t, documents, "documents response invalid: %+v", documents)
 					require.NotEmpty(t, documents, "documents len invalid: %+v", documents)
@@ -923,8 +924,8 @@ func TestBatch(test *testing.T) {
 					}
 				}
 				err := batch.Commit(context.Background())
-				require.Equalf(t, grpc.Code(scenario.err), grpc.Code(err), "set invalid grpccode: error=%+v", err)
-				require.Equalf(t, grpc.ErrorDesc(scenario.err), grpc.ErrorDesc(err), "set invalid grpcdesc: error=%v", err)
+				require.Equalf(t, grpc.Code(scenario.err), grpc.Code(err), "invalid grpccode: error=%+v", err)
+				require.Equalf(t, grpc.ErrorDesc(scenario.err), grpc.ErrorDesc(err), "invalid grpcdesc: error=%v", err)
 			},
 		)
 	}

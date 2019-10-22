@@ -161,7 +161,7 @@ func (m *MockCloudSpanner) ExecuteStreamingSql(r *sppb.ExecuteSqlRequest, s sppb
 
 	case "UPDATE t SET x = 2 WHERE x = 1":
 		err := s.Send(&sppb.PartialResultSet{
-			Stats: &sppb.ResultSetStats{RowCount: &sppb.ResultSetStats_RowCountLowerBound{3}},
+			Stats: &sppb.ResultSetStats{RowCount: &sppb.ResultSetStats_RowCountLowerBound{RowCountLowerBound: 3}},
 		})
 		if err != nil {
 			panic(err)
