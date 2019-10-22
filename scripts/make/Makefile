@@ -7,6 +7,7 @@ include scripts/make//go/lib/Makefile
 CODECOV_COVERAGE_FILE ?= $(GO_COVERAGE_FILE)
 include scripts/make/codecov/Makefile
 include scripts/make/gcloud/Makefile
+export FIRESTORE_EMULATOR_HOST ?= $(FIRESTORE_HOST):$(FIRESTORE_PORT)
 include scripts/make/gcloud/firestore/Makefile
 POSTGRES_SCRIPTS_DIR ?= $(BASE_DIR)/test/scripts/integration/postgres
 include scripts/make/postgres/Makefile
@@ -17,9 +18,20 @@ include scripts/make/go/migrate/Makefile
 .PHONY: ci
 ci: go.vet go.coverage.text
 
+.PHONY: firestore.ping
+firestore.ping.%:
+	@echo "$(NAME) firestore.ping"
+	$(BASE_DIR)/scripts/bash/ping.sh "firestore" $(FIRESTORE_HOST) $(FIRESTORE_PORT) $*
+
+.PHONY: postgres.ping
+postgres.ping.%:
+	@echo "$(NAME) postgres.ping"
+	@#TODO: create a specific postgres ping
+	sleep 2
+	$(BASE_DIR)/scripts/bash/ping.sh "postgres" $(POSTGRES_HOST) $(POSTGRES_PORT) $*
+
 .PHONY: postgres.scripts
-postgres.scripts:
+postgres.scripts: postgres.ping.5
 	@echo "$(NAME) postgres.scripts"
-	sleep 5
 	cat $(POSTGRES_SCRIPTS_DIR)/* | \
 		psql -h $(POSTGRES_HOST) -U $(POSTGRES_USER) -d $(POSTGRES_DATABASE) -1 -f -
