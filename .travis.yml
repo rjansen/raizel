@@ -11,7 +11,7 @@ go:
     - 1.13.x
 
 env:
-  - OS=linux ARCH=amd64 TMP_DIR=/tmp
+  - OS=linux ARCH=amd64 TMP_DIR=$HOME/tmp
 
 install: sudo make codecov.install gotestsum.install
 
