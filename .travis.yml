@@ -5,7 +5,8 @@ cache:
   directories:
     - $HOME/.cache/go-build
     - $HOME/gopath/pkg/mod
-    - $HOME/tmp
+    - $HOME/tmp/codecov
+    - $HOME/tmp/gotestsum
 
 go:
     - 1.13.x
