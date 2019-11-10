@@ -3,7 +3,7 @@ sudo: true
 
 cache:
   directories:
-    - $HOME/.cache/go-build
+    #- $HOME/.cache/go-build
     - $HOME/gopath/pkg/mod
     - $HOME/tmp
 
