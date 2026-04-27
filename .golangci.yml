@@ -1,0 +1,21 @@
+run:
+  timeout: 3m
+  build-tags:
+    - integration
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+
+issues:
+  exclude-rules:
+    # rows.Close() in test setup is best-effort — do not warn.
+    - path: _test\.go
+      linters:
+        - errcheck

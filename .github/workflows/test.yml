@@ -1,0 +1,23 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.1'
+          cache: true
+
+      - name: go test (unit, in-memory sqlite)
+        run: go test -short -race -coverprofile=coverage.out ./...
+
+      - name: coverage summary
+        if: always()
+        run: go tool cover -func=coverage.out | tail -1
