@@ -42,14 +42,21 @@ test:
 
 compose-up:
 	@docker compose up -d
-	@echo "Waiting for services to be healthy..."
-	@until docker compose ps --format json | grep -q '"Health":"healthy"'; do sleep 2; done
+	@echo "Waiting for postgres..."
+	@until docker compose exec -T postgres pg_isready -U raizel >/dev/null 2>&1; do sleep 1; done
+	@echo "Waiting for oracle (this can take ~60s on first boot)..."
+	@until docker compose exec -T oracle healthcheck.sh >/dev/null 2>&1; do sleep 5; done
+	@echo "Both databases healthy."
 
 compose-down:
 	@docker compose down
 
+# Default DSNs for local docker-compose; override via environment.
+POSTGRES_DSN ?= postgres://raizel:raizel@localhost:5432/raizel?sslmode=disable
+ORACLE_DSN   ?= oracle://raizel:raizel@localhost:1521/FREEPDB1
+
 integration: compose-up
-	@go test -tags=integration ./...
+	@POSTGRES_DSN='$(POSTGRES_DSN)' ORACLE_DSN='$(ORACLE_DSN)' go test -tags=integration ./...
 	@$(MAKE) compose-down
 
 coverage:
