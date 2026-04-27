@@ -226,7 +226,7 @@ func TestQuerier_Tx(t *testing.T) {
 type taggedUser struct {
 	ID       int64  `db:"id,omitempty"` // tag option must be ignored
 	FullName string `db:"name"`
-	Internal string `db:"-"`        // skipped
+	Internal string `db:"-"` // skipped
 	Untagged string // no tag — skipped
 	Email    string `db:"email"`
 }

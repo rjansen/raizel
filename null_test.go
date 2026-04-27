@@ -190,7 +190,7 @@ type outerWithNullableInner struct {
 }
 
 type innerHasOpt struct {
-	Tag      string     `db:"tag"`
+	Tag       string     `db:"tag"`
 	StoppedAt *time.Time `db:"stopped_at"` // nullable leaf inside nested struct
 }
 
