@@ -1,7 +1,19 @@
-.DS_Store
-on/
-vendor/
-tmp/
-*coverage*
-*.pprof
+# Build artifacts
+*.exe
 *.test
+*.out
+*.pprof
+coverage.out
+coverage.html
+
+# Editor
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Local env
+.env
+.env.local
