@@ -11,12 +11,17 @@ import (
 // timeType is recognised as a scalar (not a struct) by the scanner.
 var timeType = reflect.TypeFor[time.Time]()
 
-// fieldIndex locates one column-bound struct field. Round 2 uses only the
-// shallow `index` value; Round 3 will extend this struct for nested paths
-// and nullable indirection.
+// fieldIndex locates one column-bound struct field. `path` walks possibly
+// nested struct types — empty path marks an unmapped column. `nullable`
+// is true when the leaf field is a pointer; `baseType` is then the
+// element type used to pick a nullHolder.
 type fieldIndex struct {
-	index int // struct field position; -1 marks an unmapped column
+	path     []int
+	nullable bool
+	baseType reflect.Type
 }
+
+func (fi fieldIndex) unmapped() bool { return len(fi.path) == 0 }
 
 // fieldCache memoises the column→fieldIndex map per struct type. Re-running
 // the reflect walk for every query becomes the dominant cost on hot paths
@@ -25,10 +30,18 @@ var fieldCache sync.Map // map[reflect.Type]map[string]fieldIndex
 
 // fieldsByColumn returns t's `db` tag → fieldIndex map. Tag values are
 // lowercased so column lookups are case-insensitive (Oracle-friendly).
+// Nested structs contribute dot-notation keys ("team.id") so a JOIN can
+// scan into a parent struct in one shot.
 func fieldsByColumn(t reflect.Type) map[string]fieldIndex {
 	if v, ok := fieldCache.Load(t); ok {
 		return v.(map[string]fieldIndex)
 	}
+	out := buildFieldMap(t, nil, "")
+	fieldCache.Store(t, out)
+	return out
+}
+
+func buildFieldMap(t reflect.Type, basePath []int, prefix string) map[string]fieldIndex {
 	out := make(map[string]fieldIndex, t.NumField())
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
@@ -42,17 +55,62 @@ func fieldsByColumn(t reflect.Type) map[string]fieldIndex {
 		if c := strings.IndexByte(tag, ','); c >= 0 {
 			tag = tag[:c]
 		}
-		out[strings.ToLower(tag)] = fieldIndex{index: i}
+
+		path := make([]int, 0, len(basePath)+1)
+		path = append(path, basePath...)
+		path = append(path, i)
+
+		ft := f.Type
+		nullable := ft.Kind() == reflect.Pointer
+		if nullable {
+			ft = ft.Elem()
+		}
+
+		// Nested struct (excluding time.Time which we treat as a scalar):
+		// recurse and merge with a "tag." prefix. Nested-leaf nullability
+		// is preserved — that was a bug in the implementation we forked.
+		if ft.Kind() == reflect.Struct && ft != timeType {
+			nested := buildFieldMap(ft, path, tag+".")
+			for k, v := range nested {
+				out[strings.ToLower(k)] = v
+			}
+			continue
+		}
+
+		col := tag
+		if prefix != "" {
+			col = prefix + tag
+		}
+		out[strings.ToLower(col)] = fieldIndex{
+			path:     path,
+			nullable: nullable,
+			baseType: ft,
+		}
 	}
-	fieldCache.Store(t, out)
 	return out
 }
 
-// rowScanner holds the per-query scan plan. It is constructed once after
+// fieldByPath walks an index path through possibly-nested struct values,
+// auto-allocating any nil pointer-to-struct it traverses so the leaf
+// field is addressable.
+func fieldByPath(v reflect.Value, path []int) reflect.Value {
+	for _, idx := range path {
+		if v.Kind() == reflect.Pointer {
+			if v.IsNil() {
+				v.Set(reflect.New(v.Type().Elem()))
+			}
+			v = v.Elem()
+		}
+		v = v.Field(idx)
+	}
+	return v
+}
+
+// rowScanner holds the per-query scan plan. It is built once after
 // rows.Columns() and reused across every row in the result set.
 type rowScanner[T any] struct {
 	isStruct bool
-	fields   []fieldIndex // aligned with rows.Columns(); index<0 means discard
+	fields   []fieldIndex // aligned with rows.Columns(); unmapped() marks discard
 }
 
 func newRowScanner[T any](rows *sql.Rows) (*rowScanner[T], error) {
@@ -69,9 +127,15 @@ func newRowScanner[T any](rows *sql.Rows) (*rowScanner[T], error) {
 	for i, c := range cols {
 		if fi, ok := fmap[strings.ToLower(c)]; ok {
 			s.fields[i] = fi
-		} else {
-			s.fields[i] = fieldIndex{index: -1}
+			// Validate nullable holders eagerly: a misconfigured *T raises
+			// an error before we touch driver memory.
+			if fi.nullable {
+				if _, err := nullHolderFor(fi.baseType); err != nil {
+					return nil, err
+				}
+			}
 		}
+		// else: zero-value fieldIndex with nil path → marked unmapped
 	}
 	return s, nil
 }
@@ -84,23 +148,43 @@ func (s *rowScanner[T]) scan(rows *sql.Rows) (T, error) {
 		}
 		return dst, nil
 	}
+
 	rv := reflect.ValueOf(&dst).Elem()
 	args := make([]any, len(s.fields))
+	holders := make([]nullHolder, len(s.fields))
+
 	for i, fi := range s.fields {
-		if fi.index < 0 {
-			args[i] = new(any) // unmapped — discard into a fresh sink
+		if fi.unmapped() {
+			args[i] = new(any) // discard each unmapped column into a fresh sink
 			continue
 		}
-		args[i] = rv.Field(fi.index).Addr().Interface()
+		if fi.nullable {
+			h, _ := nullHolderFor(fi.baseType) // validated at scanner construction
+			holders[i] = h
+			args[i] = h.scanDest()
+			continue
+		}
+		f := fieldByPath(rv, fi.path)
+		args[i] = f.Addr().Interface()
 	}
+
 	if err := rows.Scan(args...); err != nil {
 		return dst, err
+	}
+
+	for i, h := range holders {
+		if h == nil {
+			continue
+		}
+		f := fieldByPath(rv, s.fields[i].path)
+		h.assign(f)
 	}
 	return dst, nil
 }
 
 // isStructType reports whether T should be scanned as a tagged struct
-// rather than as a single-column scalar. time.Time is treated as a scalar.
+// rather than as a single-column scalar. time.Time is a struct in the
+// reflect sense but is treated as a scalar here.
 func isStructType[T any]() bool {
 	t := reflect.TypeFor[T]()
 	if t.Kind() == reflect.Pointer {
