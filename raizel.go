@@ -17,6 +17,7 @@ package raizel
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 )
 
@@ -86,4 +87,63 @@ func Exec(ctx context.Context, q Querier, query string, args ...any) (sql.Result
 		return nil, fmt.Errorf("raizel.Exec: %w", err)
 	}
 	return res, nil
+}
+
+// txBeginner is satisfied by *sql.DB. *sql.Tx is intentionally not — when
+// the caller already supplies a transaction, ExecNamed reuses it rather
+// than opening a nested one.
+type txBeginner interface {
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+}
+
+// ExecNamed runs query once for each model. The query may contain `:name`
+// placeholders that are matched against the model's `db` tags and
+// rewritten to dialect's positional form (?, $N, :N) before being sent
+// to the driver.
+//
+// When called with two or more models against a *sql.DB, ExecNamed wraps
+// the batch in a single transaction so a mid-batch failure rolls back the
+// rows that came before. When the caller already passes a *sql.Tx, the
+// caller's transaction is reused as-is.
+//
+// Returns the sql.Result of the last successful execution.
+func ExecNamed[T any](ctx context.Context, q Querier, dialect Dialect, query string, models ...T) (sql.Result, error) {
+	if len(models) == 0 {
+		return nil, errors.New("raizel.ExecNamed: at least one model is required")
+	}
+
+	if len(models) > 1 {
+		if beginner, ok := q.(txBeginner); ok {
+			tx, err := beginner.BeginTx(ctx, nil)
+			if err != nil {
+				return nil, fmt.Errorf("raizel.ExecNamed begin: %w", err)
+			}
+			res, execErr := execNamedAll(ctx, tx, dialect, query, models)
+			if execErr != nil {
+				_ = tx.Rollback()
+				return nil, execErr
+			}
+			if err := tx.Commit(); err != nil {
+				return nil, fmt.Errorf("raizel.ExecNamed commit: %w", err)
+			}
+			return res, nil
+		}
+	}
+	return execNamedAll(ctx, q, dialect, query, models)
+}
+
+func execNamedAll[T any](ctx context.Context, q Querier, dialect Dialect, query string, models []T) (sql.Result, error) {
+	var last sql.Result
+	for _, m := range models {
+		rewritten, params, err := rewriteNamed(query, dialect, m)
+		if err != nil {
+			return nil, fmt.Errorf("raizel.ExecNamed: %w", err)
+		}
+		res, err := q.ExecContext(ctx, rewritten, params...)
+		if err != nil {
+			return nil, fmt.Errorf("raizel.ExecNamed: %w", err)
+		}
+		last = res
+	}
+	return last, nil
 }
