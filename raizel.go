@@ -19,6 +19,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
+	"github.com/rjansen/raizel/internal/named"
+	"github.com/rjansen/raizel/internal/scanner"
 )
 
 // Query runs the SQL and scans every row into a value of type T. T may be
@@ -31,14 +34,14 @@ func Query[T any](ctx context.Context, q Querier, query string, args ...any) ([]
 	}
 	defer rows.Close()
 
-	scanner, err := newRowScanner[T](rows)
+	rs, err := scanner.New[T](rows)
 	if err != nil {
 		return nil, fmt.Errorf("raizel.Query: %w", err)
 	}
 
 	out := []T{}
 	for rows.Next() {
-		v, err := scanner.scan(rows)
+		v, err := rs.Scan(rows)
 		if err != nil {
 			return nil, fmt.Errorf("raizel.Query scan: %w", err)
 		}
@@ -67,11 +70,11 @@ func QueryOne[T any](ctx context.Context, q Querier, query string, args ...any) 
 		return zero, ErrNotFound
 	}
 
-	scanner, err := newRowScanner[T](rows)
+	rs, err := scanner.New[T](rows)
 	if err != nil {
 		return zero, fmt.Errorf("raizel.QueryOne: %w", err)
 	}
-	v, err := scanner.scan(rows)
+	v, err := rs.Scan(rows)
 	if err != nil {
 		return zero, fmt.Errorf("raizel.QueryOne scan: %w", err)
 	}
@@ -135,7 +138,7 @@ func ExecNamed[T any](ctx context.Context, q Querier, dialect Dialect, query str
 func execNamedAll[T any](ctx context.Context, q Querier, dialect Dialect, query string, models []T) (sql.Result, error) {
 	var last sql.Result
 	for _, m := range models {
-		rewritten, params, err := rewriteNamed(query, dialect, m)
+		rewritten, params, err := named.Rewrite(query, dialect.Placeholder, m)
 		if err != nil {
 			return nil, fmt.Errorf("raizel.ExecNamed: %w", err)
 		}

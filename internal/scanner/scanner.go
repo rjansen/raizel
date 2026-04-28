@@ -1,4 +1,7 @@
-package raizel
+// Package scanner builds and runs the per-query plan that maps
+// database/sql columns into typed Go values. It is internal plumbing
+// driven by the public raizel API.
+package scanner
 
 import (
 	"database/sql"
@@ -6,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/rjansen/raizel/internal/null"
 )
 
 // timeType is recognised as a scalar (not a struct) by the scanner.
@@ -14,7 +19,7 @@ var timeType = reflect.TypeFor[time.Time]()
 // fieldIndex locates one column-bound struct field. `path` walks possibly
 // nested struct types — empty path marks an unmapped column. `nullable`
 // is true when the leaf field is a pointer; `baseType` is then the
-// element type used to pick a nullHolder.
+// element type used to pick a null.Holder.
 type fieldIndex struct {
 	path     []int
 	nullable bool
@@ -106,15 +111,16 @@ func fieldByPath(v reflect.Value, path []int) reflect.Value {
 	return v
 }
 
-// rowScanner holds the per-query scan plan. It is built once after
+// RowScanner holds the per-query scan plan. It is built once after
 // rows.Columns() and reused across every row in the result set.
-type rowScanner[T any] struct {
+type RowScanner[T any] struct {
 	isStruct bool
 	fields   []fieldIndex // aligned with rows.Columns(); unmapped() marks discard
 }
 
-func newRowScanner[T any](rows *sql.Rows) (*rowScanner[T], error) {
-	s := &rowScanner[T]{isStruct: isStructType[T]()}
+// New builds a scan plan for type T against the columns reported by rows.
+func New[T any](rows *sql.Rows) (*RowScanner[T], error) {
+	s := &RowScanner[T]{isStruct: isStructType[T]()}
 	if !s.isStruct {
 		return s, nil
 	}
@@ -130,7 +136,7 @@ func newRowScanner[T any](rows *sql.Rows) (*rowScanner[T], error) {
 			// Validate nullable holders eagerly: a misconfigured *T raises
 			// an error before we touch driver memory.
 			if fi.nullable {
-				if _, err := nullHolderFor(fi.baseType); err != nil {
+				if _, err := null.HolderFor(fi.baseType); err != nil {
 					return nil, err
 				}
 			}
@@ -140,7 +146,9 @@ func newRowScanner[T any](rows *sql.Rows) (*rowScanner[T], error) {
 	return s, nil
 }
 
-func (s *rowScanner[T]) scan(rows *sql.Rows) (T, error) {
+// Scan reads the next row through the prepared plan and returns a freshly
+// allocated T.
+func (s *RowScanner[T]) Scan(rows *sql.Rows) (T, error) {
 	var dst T
 	if !s.isStruct {
 		if err := rows.Scan(&dst); err != nil {
@@ -151,7 +159,7 @@ func (s *rowScanner[T]) scan(rows *sql.Rows) (T, error) {
 
 	rv := reflect.ValueOf(&dst).Elem()
 	args := make([]any, len(s.fields))
-	holders := make([]nullHolder, len(s.fields))
+	holders := make([]null.Holder, len(s.fields))
 
 	for i, fi := range s.fields {
 		if fi.unmapped() {
@@ -159,9 +167,9 @@ func (s *rowScanner[T]) scan(rows *sql.Rows) (T, error) {
 			continue
 		}
 		if fi.nullable {
-			h, _ := nullHolderFor(fi.baseType) // validated at scanner construction
+			h, _ := null.HolderFor(fi.baseType) // validated at scanner construction
 			holders[i] = h
-			args[i] = h.scanDest()
+			args[i] = h.ScanDest()
 			continue
 		}
 		f := fieldByPath(rv, fi.path)
@@ -177,7 +185,7 @@ func (s *rowScanner[T]) scan(rows *sql.Rows) (T, error) {
 			continue
 		}
 		f := fieldByPath(rv, s.fields[i].path)
-		h.assign(f)
+		h.Assign(f)
 	}
 	return dst, nil
 }
