@@ -1,6 +1,6 @@
 # raizel
 
-Generic Go database-access helper on top of `database/sql`. Single package at the module root. Supports SQLite, PostgreSQL, and Oracle (ATP / Free).
+Generic Go database-access helper on top of `database/sql`. Public API at the module root, implementation under `internal/`. Supports SQLite, PostgreSQL, and Oracle (ATP / Free).
 
 ## Commands
 
@@ -12,13 +12,18 @@ Generic Go database-access helper on top of `database/sql`. Single package at th
 
 ## Architecture
 
-- `raizel.go` — public API: `Query[T]`, `QueryOne[T]`, `Exec`, `ExecNamed[T]`
+Public API (module root, `package raizel`):
+
+- `raizel.go` — `Query[T]`, `QueryOne[T]`, `Exec`, `ExecNamed[T]`
 - `querier.go` — `Querier` interface (`*sql.DB` or `*sql.Tx`)
 - `dialect.go` — `Dialect` enum + placeholder rewriting
-- `scanner.go` — reflect-based row scanner with per-type cache
-- `null.go` — nullable-pointer holders
-- `named.go` — `:name` tokenizer + struct-tag value extractor
 - `errors.go` — sentinels (`ErrNotFound`)
+
+Implementation (under `internal/`, unimportable outside the module):
+
+- `internal/scanner/` — reflect-based row scanner with per-type cache
+- `internal/named/` — `:name` tokenizer + struct-tag value extractor (dialect-agnostic; takes a placeholder callback)
+- `internal/null/` — nullable-pointer holders
 
 ## Code Style
 
@@ -29,6 +34,7 @@ Generic Go database-access helper on top of `database/sql`. Single package at th
 
 ## Important
 
+- Public API stays at the module root; implementation helpers live under `internal/<subpkg>/`. New unexported helpers go in `internal/`, not the root — the `internal/` boundary is what enforces the public surface, so keep it small and intentional.
 - NEVER add a runtime dependency outside the standard library
 - NEVER type-assert to `*sql.DB` directly — go through `Querier` so transactions work
 - NEVER swallow `rows.Err()` after the scan loop

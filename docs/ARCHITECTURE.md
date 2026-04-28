@@ -1,9 +1,12 @@
 # Architecture
 
-raizel is one Go package at the module root. The four public functions —
-`Query[T]`, `QueryOne[T]`, `Exec`, `ExecNamed[T]` — sit on top of three
-internal subsystems: a row scanner, a nullable-pointer shuttle, and a
-named-parameter rewriter.
+raizel's public API lives in `package raizel` at the module root. The four
+public functions — `Query[T]`, `QueryOne[T]`, `Exec`, `ExecNamed[T]` — sit
+on top of three subsystems shipped under `internal/`: a row scanner, a
+nullable-pointer shuttle, and a named-parameter rewriter. Go's `internal/`
+rule keeps those subsystems unimportable from outside the module, so the
+public surface stays exactly four functions plus the `Querier` interface,
+the `Dialect` enum, and the `ErrNotFound` sentinel.
 
 ## File map
 
@@ -13,36 +16,36 @@ named-parameter rewriter.
 | `querier.go` | `Querier` interface — the minimal subset of `*sql.DB` (also satisfied by `*sql.Tx`). |
 | `dialect.go` | `Dialect` enum + `Placeholder(n)` for `?` / `$N` / `:N`. |
 | `errors.go` | `ErrNotFound` returned by `QueryOne` when no row matches. |
-| `scanner.go` | `fieldIndex`, the per-type field-map cache (`sync.Map`), `rowScanner[T]`, `fieldByPath`. |
-| `null.go` | `nullHolder` interface and shuttles for `*time.Time`, `*int64`, `*float64`, `*string`, `*bool`. |
-| `named.go` | `rewriteNamed` tokenizer (`:name` → dialect placeholder; `::cast` is preserved) and `tagValues` extractor. |
+| `internal/scanner/scanner.go` | `fieldIndex`, the per-type field-map cache (`sync.Map`), `RowScanner[T]`, `fieldByPath`. |
+| `internal/null/null.go` | `Holder` interface and shuttles for `*time.Time`, `*int64`, `*float64`, `*string`, `*bool`. |
+| `internal/named/named.go` | `Rewrite` tokenizer (`:name` → caller-supplied placeholder; `::cast` is preserved) and `tagValues` extractor. Dialect-agnostic — takes a `func(int) string` callback. |
 
 ## Scanner pipeline
 
 1. `Query` / `QueryOne` calls `q.QueryContext` and gets `*sql.Rows`.
-2. `newRowScanner[T]` is built once: it asks the rows for their column
+2. `scanner.New[T]` is built once: it asks the rows for their column
    names, walks `T`'s `db` tags via `fieldsByColumn` (cached per type),
    and produces a `[]fieldIndex` aligned with the column order.
 3. Each `fieldIndex` carries (a) the index path through possibly-nested
    structs, (b) a `nullable` flag, (c) the leaf base type used to pick a
-   `nullHolder`. An empty path marks an unmapped column — its slot
+   `null.Holder`. An empty path marks an unmapped column — its slot
    discards into a fresh `*any` sink so the driver still sees the right
    number of destinations.
-4. `scan` allocates one destination per column. Non-nullable fields scan
+4. `Scan` allocates one destination per column. Non-nullable fields scan
    straight into the addressable struct field; nullable fields scan into
-   a `nullHolder`'s `Null*` shuttle and a second pass calls
-   `holder.assign(field)` to set the pointer when the column was non-NULL.
+   a `null.Holder`'s `Null*` shuttle and a second pass calls
+   `holder.Assign(field)` to set the pointer when the column was non-NULL.
 5. `fieldByPath` walks possibly-nested struct values and auto-allocates
    any nil pointer-to-struct it crosses, so a JOIN can scan straight into
    `Member.Team.ID` even when `Team` was zero on entry.
 
 ## Nullable shuttling
 
-`nullHolderFor` returns a fresh holder per scan; pre-flight validation in
-`newRowScanner` rejects unsupported pointer base types (e.g. `*int32`)
+`null.HolderFor` returns a fresh holder per scan; pre-flight validation in
+`scanner.New` rejects unsupported pointer base types (e.g. `*int32`)
 before any driver memory is touched. Adding a new supported type means
-adding a new `nullHolder` implementation and a switch arm in
-`nullHolderFor` — the cache and scanner do not need to change.
+adding a new `null.Holder` implementation and a switch arm in
+`null.HolderFor` — the cache and scanner do not need to change.
 
 ## Dialect-aware named params
 
@@ -64,6 +67,6 @@ verbatim — no nested transactions.
 
 - `fieldCache` (`sync.Map`) is keyed by `reflect.Type`. Reads dominate
   writes after warmup; the map is goroutine-safe.
-- Each `rowScanner` is built per-query and therefore not shared across
+- Each `RowScanner` is built per-query and therefore not shared across
   goroutines. The cache it consults is.
 - No package-global state mutates after init.
