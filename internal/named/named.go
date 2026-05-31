@@ -5,6 +5,7 @@
 package named
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -16,9 +17,11 @@ var timeType = reflect.TypeFor[time.Time]()
 
 // Rewrite walks query, replacing every `:name` token with placeholder(n)
 // (1-indexed) and collecting the corresponding values from model's `db`
-// tags. Postgres-style `::` type casts are passed through verbatim.
-func Rewrite(query string, placeholder func(n int) string, model any) (string, []any, error) {
-	values, err := tagValues(model)
+// tags. Postgres-style `::` type casts are passed through verbatim. When
+// jsonArrays is true, slice-typed fields are JSON-encoded to a string so
+// engines without native arrays (Oracle/SQLite) can store them.
+func Rewrite(query string, placeholder func(n int) string, jsonArrays bool, model any) (string, []any, error) {
+	values, err := tagValues(model, jsonArrays)
 	if err != nil {
 		return "", nil, err
 	}
@@ -65,10 +68,18 @@ func Rewrite(query string, placeholder func(n int) string, model any) (string, [
 	return out.String(), params, nil
 }
 
+// isArraySlice reports whether t is a slice raizel maps onto an array
+// column. []byte is excluded — it is a scalar blob, not an array.
+func isArraySlice(t reflect.Type) bool {
+	return t.Kind() == reflect.Slice && t.Elem().Kind() != reflect.Uint8
+}
+
 // tagValues flattens model's exported `db`-tagged fields into a name→value
 // map. Pointer fields contribute the dereferenced value or nil. Nested
-// structs are skipped — named params take the flat tag form only.
-func tagValues(model any) (map[string]any, error) {
+// structs are skipped — named params take the flat tag form only. When
+// jsonArrays is true, slice fields are JSON-encoded to a string (nil and
+// empty slices both render as "[]").
+func tagValues(model any, jsonArrays bool) (map[string]any, error) {
 	rv := reflect.ValueOf(model)
 	if rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
@@ -101,6 +112,29 @@ func tagValues(model any) (map[string]any, error) {
 			} else {
 				out[tag] = fv.Elem().Interface()
 			}
+			continue
+		}
+		if isArraySlice(ft) {
+			if !jsonArrays {
+				// Native array (pgx encodes []T). A nil slice would encode
+				// as SQL NULL; send an empty slice instead so a no-elements
+				// field lands as '{}', mirroring the JSON path's "[]".
+				if fv.IsNil() {
+					out[tag] = reflect.MakeSlice(ft, 0, 0).Interface()
+				} else {
+					out[tag] = fv.Interface()
+				}
+				continue
+			}
+			if fv.IsNil() {
+				out[tag] = "[]"
+				continue
+			}
+			b, err := json.Marshal(fv.Interface())
+			if err != nil {
+				return nil, fmt.Errorf("raizel.ExecNamed: encode JSON array for :%s: %w", tag, err)
+			}
+			out[tag] = string(b)
 			continue
 		}
 		if ft.Kind() == reflect.Struct && ft != timeType {

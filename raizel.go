@@ -2,16 +2,19 @@
 // results into typed Go values without code generation. It supports
 // SQLite, PostgreSQL, and Oracle through any standard database/sql driver.
 //
-// The public API is four functions:
+// The public API is four generic functions over a dialect-bound [Handle]
+// (a [DB] opened with [Open]/[Wrap], or a [Tx]):
 //
 //	Query[T]     run a SELECT and scan every row into a freshly-allocated T
 //	QueryOne[T]  run a SELECT and scan the first row, or return ErrNotFound
 //	Exec         run a non-query statement with positional arguments
 //	ExecNamed[T] run a non-query whose `:name` placeholders are bound from
-//	             struct fields tagged `db:"name"` (added in Round 4)
+//	             struct fields tagged `db:"name"`
 //
-// Both `*sql.DB` and `*sql.Tx` satisfy the [Querier] interface, so the
-// same helpers work in or out of a transaction.
+// Because the Handle carries the [Dialect], the dialect is configured once
+// when the pool is opened rather than threaded through every call. Slice
+// fields (e.g. []string) round-trip as native arrays on PostgreSQL and as
+// JSON text on Oracle/SQLite, transparently.
 package raizel
 
 import (
@@ -27,14 +30,14 @@ import (
 // Query runs the SQL and scans every row into a value of type T. T may be
 // a tagged struct or a scalar (single-column) value. The returned slice is
 // never nil — an empty result set yields []T{} of length zero.
-func Query[T any](ctx context.Context, q Querier, query string, args ...any) ([]T, error) {
-	rows, err := q.QueryContext(ctx, query, args...)
+func Query[T any](ctx context.Context, h Handle, query string, args ...any) ([]T, error) {
+	rows, err := h.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("raizel.Query: %w", err)
 	}
 	defer rows.Close()
 
-	rs, err := scanner.New[T](rows)
+	rs, err := scanner.New[T](rows, !h.Dialect().NativeArrays())
 	if err != nil {
 		return nil, fmt.Errorf("raizel.Query: %w", err)
 	}
@@ -55,9 +58,9 @@ func Query[T any](ctx context.Context, q Querier, query string, args ...any) ([]
 
 // QueryOne runs the SQL and scans the first row into a freshly-allocated
 // T. It returns ErrNotFound when the query produces no rows.
-func QueryOne[T any](ctx context.Context, q Querier, query string, args ...any) (T, error) {
+func QueryOne[T any](ctx context.Context, h Handle, query string, args ...any) (T, error) {
 	var zero T
-	rows, err := q.QueryContext(ctx, query, args...)
+	rows, err := h.QueryContext(ctx, query, args...)
 	if err != nil {
 		return zero, fmt.Errorf("raizel.QueryOne: %w", err)
 	}
@@ -70,7 +73,7 @@ func QueryOne[T any](ctx context.Context, q Querier, query string, args ...any) 
 		return zero, ErrNotFound
 	}
 
-	rs, err := scanner.New[T](rows)
+	rs, err := scanner.New[T](rows, !h.Dialect().NativeArrays())
 	if err != nil {
 		return zero, fmt.Errorf("raizel.QueryOne: %w", err)
 	}
@@ -82,46 +85,44 @@ func QueryOne[T any](ctx context.Context, q Querier, query string, args ...any) 
 }
 
 // Exec runs a non-query statement with positional parameters. It is a
-// thin wrapper around q.ExecContext that wraps driver errors with a
-// raizel-prefixed context for easier root-cause analysis.
-func Exec(ctx context.Context, q Querier, query string, args ...any) (sql.Result, error) {
-	res, err := q.ExecContext(ctx, query, args...)
+// thin wrapper around the handle's ExecContext that wraps driver errors
+// with a raizel-prefixed context for easier root-cause analysis.
+//
+// Positional slice arguments are passed to the driver as-is; on dialects
+// without native arrays, encode them yourself (or prefer ExecNamed, which
+// handles slice encoding from struct tags).
+func Exec(ctx context.Context, h Handle, query string, args ...any) (sql.Result, error) {
+	res, err := h.ExecContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("raizel.Exec: %w", err)
 	}
 	return res, nil
 }
 
-// txBeginner is satisfied by *sql.DB. *sql.Tx is intentionally not — when
-// the caller already supplies a transaction, ExecNamed reuses it rather
-// than opening a nested one.
-type txBeginner interface {
-	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
-}
-
 // ExecNamed runs query once for each model. The query may contain `:name`
 // placeholders that are matched against the model's `db` tags and
-// rewritten to dialect's positional form (?, $N, :N) before being sent
-// to the driver.
+// rewritten to the handle dialect's positional form (?, $N, :N) before
+// being sent to the driver. Slice-typed fields are encoded as native
+// arrays (PostgreSQL) or JSON text (Oracle/SQLite) to match the dialect.
 //
-// When called with two or more models against a *sql.DB, ExecNamed wraps
-// the batch in a single transaction so a mid-batch failure rolls back the
-// rows that came before. When the caller already passes a *sql.Tx, the
-// caller's transaction is reused as-is.
+// When called with two or more models against a *DB, ExecNamed wraps the
+// batch in a single transaction so a mid-batch failure rolls back the rows
+// that came before. When the caller already passes a *Tx, that transaction
+// is reused as-is.
 //
 // Returns the sql.Result of the last successful execution.
-func ExecNamed[T any](ctx context.Context, q Querier, dialect Dialect, query string, models ...T) (sql.Result, error) {
+func ExecNamed[T any](ctx context.Context, h Handle, query string, models ...T) (sql.Result, error) {
 	if len(models) == 0 {
 		return nil, errors.New("raizel.ExecNamed: at least one model is required")
 	}
 
 	if len(models) > 1 {
-		if beginner, ok := q.(txBeginner); ok {
-			tx, err := beginner.BeginTx(ctx, nil)
+		if dbh, ok := h.(*DB); ok {
+			tx, err := dbh.Begin(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("raizel.ExecNamed begin: %w", err)
 			}
-			res, execErr := execNamedAll(ctx, tx, dialect, query, models)
+			res, execErr := execNamedAll(ctx, tx, query, models)
 			if execErr != nil {
 				_ = tx.Rollback()
 				return nil, execErr
@@ -132,17 +133,19 @@ func ExecNamed[T any](ctx context.Context, q Querier, dialect Dialect, query str
 			return res, nil
 		}
 	}
-	return execNamedAll(ctx, q, dialect, query, models)
+	return execNamedAll(ctx, h, query, models)
 }
 
-func execNamedAll[T any](ctx context.Context, q Querier, dialect Dialect, query string, models []T) (sql.Result, error) {
+func execNamedAll[T any](ctx context.Context, h Handle, query string, models []T) (sql.Result, error) {
+	dialect := h.Dialect()
+	jsonArrays := !dialect.NativeArrays()
 	var last sql.Result
 	for _, m := range models {
-		rewritten, params, err := named.Rewrite(query, dialect.Placeholder, m)
+		rewritten, params, err := named.Rewrite(query, dialect.Placeholder, jsonArrays, m)
 		if err != nil {
 			return nil, fmt.Errorf("raizel.ExecNamed: %w", err)
 		}
-		res, err := q.ExecContext(ctx, rewritten, params...)
+		res, err := h.ExecContext(ctx, rewritten, params...)
 		if err != nil {
 			return nil, fmt.Errorf("raizel.ExecNamed: %w", err)
 		}
