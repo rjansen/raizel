@@ -16,7 +16,6 @@ package raizel_test
 
 import (
 	"context"
-	"database/sql"
 	"os"
 	"testing"
 	"time"
@@ -65,28 +64,28 @@ var dialectCases = []dialectCase{
 	},
 }
 
-func openDialect(t *testing.T, c dialectCase) *sql.DB {
+func openDialect(t *testing.T, c dialectCase) *raizel.DB {
 	t.Helper()
 	dsn := os.Getenv(c.dsnEnvVar)
 	if dsn == "" {
 		t.Skipf("%s not set — skipping %s integration tests", c.dsnEnvVar, c.name)
 	}
-	db, err := sql.Open(c.driver, dsn)
+	rz, err := raizel.Open(c.dialect, dsn)
 	if err != nil {
 		t.Fatalf("open %s: %v", c.name, err)
 	}
-	if err := db.PingContext(context.Background()); err != nil {
+	if err := rz.PingContext(context.Background()); err != nil {
 		t.Fatalf("ping %s: %v", c.name, err)
 	}
-	t.Cleanup(func() { _ = db.Close() })
+	t.Cleanup(func() { _ = rz.Close() })
 
 	// Pre-drop any leftover from a previous run, then create fresh.
-	_, _ = db.Exec("DROP TABLE " + integTable)
-	if _, err := db.Exec(c.createSQL); err != nil {
+	_, _ = rz.SQL().Exec("DROP TABLE " + integTable)
+	if _, err := rz.SQL().Exec(c.createSQL); err != nil {
 		t.Fatalf("create table on %s: %v", c.name, err)
 	}
-	t.Cleanup(func() { _, _ = db.Exec("DROP TABLE " + integTable) })
-	return db
+	t.Cleanup(func() { _, _ = rz.SQL().Exec("DROP TABLE " + integTable) })
+	return rz
 }
 
 type integBill struct {
@@ -109,7 +108,7 @@ func TestIntegration_CRUD(t *testing.T) {
 			when := time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC)
 			b1 := integBill{Title: "rent", Amount: 1500, PaidAt: &when}
 			b2 := integBill{Title: "power", Amount: 80, PaidAt: nil}
-			if _, err := raizel.ExecNamed(ctx, db, c.dialect,
+			if _, err := raizel.ExecNamed(ctx, db,
 				`INSERT INTO `+integTable+` (title, amount, paid_at) VALUES (:title, :amount, :paid_at)`,
 				b1, b2); err != nil {
 				t.Fatalf("ExecNamed batch: %v", err)
@@ -165,7 +164,7 @@ func TestIntegration_BatchRollback(t *testing.T) {
 			}
 			// Force a NOT NULL violation on amount by omitting it from the
 			// INSERT column list — the table requires it.
-			_, err := raizel.ExecNamed(ctx, db, c.dialect,
+			_, err := raizel.ExecNamed(ctx, db,
 				`INSERT INTO `+integTable+` (title) VALUES (:title)`, rows[0], rows[1])
 			if err == nil {
 				t.Fatal("expected NOT NULL violation")
@@ -176,6 +175,70 @@ func TestIntegration_BatchRollback(t *testing.T) {
 			}
 			if n != 0 {
 				t.Errorf("rollback failed: count=%d", n)
+			}
+		})
+	}
+}
+
+const integArrayTable = "raizel_test_docs"
+
+type integDoc struct {
+	ID     int64    `db:"id"`
+	Labels []string `db:"labels"`
+}
+
+// TestIntegration_ArrayRoundTrip proves []string fields round-trip through
+// PostgreSQL's native TEXT[] and Oracle's JSON CLOB without any
+// dialect-specific code in the caller.
+func TestIntegration_ArrayRoundTrip(t *testing.T) {
+	for _, c := range dialectCases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			db := openDialect(t, c)
+			ctx := context.Background()
+
+			var ddl string
+			switch c.dialect {
+			case raizel.DialectPostgres:
+				ddl = `CREATE TABLE ` + integArrayTable + ` (
+					id BIGINT PRIMARY KEY,
+					labels TEXT[] NOT NULL DEFAULT '{}'
+				)`
+			case raizel.DialectOracle:
+				ddl = `CREATE TABLE ` + integArrayTable + ` (
+					id NUMBER(19) PRIMARY KEY,
+					labels CLOB DEFAULT '[]' NOT NULL CHECK (labels IS JSON)
+				)`
+			}
+			_, _ = db.SQL().Exec("DROP TABLE " + integArrayTable)
+			if _, err := db.SQL().Exec(ddl); err != nil {
+				t.Fatalf("create array table on %s: %v", c.name, err)
+			}
+			t.Cleanup(func() { _, _ = db.SQL().Exec("DROP TABLE " + integArrayTable) })
+
+			if _, err := raizel.ExecNamed(ctx, db,
+				"INSERT INTO "+integArrayTable+" (id, labels) VALUES (:id, :labels)",
+				integDoc{ID: 1, Labels: []string{"INBOX", "IMPORTANT"}},
+				integDoc{ID: 2, Labels: nil}); err != nil {
+				t.Fatalf("ExecNamed: %v", err)
+			}
+
+			got, err := raizel.QueryOne[integDoc](ctx, db,
+				"SELECT id, labels FROM "+integArrayTable+" WHERE id = "+c.dialect.Placeholder(1), 1)
+			if err != nil {
+				t.Fatalf("QueryOne: %v", err)
+			}
+			if len(got.Labels) != 2 || got.Labels[0] != "INBOX" || got.Labels[1] != "IMPORTANT" {
+				t.Errorf("labels round-trip on %s: got %#v", c.name, got.Labels)
+			}
+
+			empty, err := raizel.QueryOne[integDoc](ctx, db,
+				"SELECT id, labels FROM "+integArrayTable+" WHERE id = "+c.dialect.Placeholder(1), 2)
+			if err != nil {
+				t.Fatalf("QueryOne empty: %v", err)
+			}
+			if len(empty.Labels) != 0 {
+				t.Errorf("empty labels round-trip on %s: got %#v", c.name, empty.Labels)
 			}
 		})
 	}

@@ -2,7 +2,6 @@ package raizel_test
 
 import (
 	"context"
-	"database/sql"
 	"strings"
 	"testing"
 	"time"
@@ -24,9 +23,9 @@ type nullableUser struct {
 	Active    *bool      `db:"active"`
 }
 
-func seedNullable(t *testing.T, db *sql.DB) {
+func seedNullable(t *testing.T, db *raizel.DB) {
 	t.Helper()
-	if _, err := db.Exec(`CREATE TABLE n_users (
+	if _, err := db.SQL().Exec(`CREATE TABLE n_users (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL,
 		deleted_at DATETIME,
@@ -44,7 +43,7 @@ func TestQuery_AllNullableFieldsNull(t *testing.T) {
 	seedNullable(t, db)
 	ctx := context.Background()
 
-	if _, err := db.Exec("INSERT INTO n_users(name) VALUES ('Alice')"); err != nil {
+	if _, err := db.SQL().Exec("INSERT INTO n_users(name) VALUES ('Alice')"); err != nil {
 		t.Fatal(err)
 	}
 	u, err := raizel.QueryOne[nullableUser](ctx, db,
@@ -66,7 +65,7 @@ func TestQuery_AllNullableFieldsSet(t *testing.T) {
 	ctx := context.Background()
 
 	deleted := time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC)
-	if _, err := db.Exec(
+	if _, err := db.SQL().Exec(
 		"INSERT INTO n_users(name, deleted_at, score, bonus, nickname, active) VALUES (?,?,?,?,?,?)",
 		"Bob", deleted, int64(99), 1.5, "bb", true); err != nil {
 		t.Fatal(err)
@@ -98,7 +97,7 @@ func TestQuery_NullableMixed(t *testing.T) {
 	seedNullable(t, db)
 	ctx := context.Background()
 
-	if _, err := db.Exec("INSERT INTO n_users(name, score) VALUES ('Eve', 7)"); err != nil {
+	if _, err := db.SQL().Exec("INSERT INTO n_users(name, score) VALUES ('Eve', 7)"); err != nil {
 		t.Fatal(err)
 	}
 	u, err := raizel.QueryOne[nullableUser](ctx, db,
@@ -124,10 +123,10 @@ type unsupportedNullable struct {
 func TestNullable_UnsupportedTypeFailsLoudly(t *testing.T) {
 	db := openDB(t)
 	ctx := context.Background()
-	if _, err := db.Exec("CREATE TABLE x (id INTEGER, count INTEGER)"); err != nil {
+	if _, err := db.SQL().Exec("CREATE TABLE x (id INTEGER, count INTEGER)"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("INSERT INTO x VALUES (1, NULL)"); err != nil {
+	if _, err := db.SQL().Exec("INSERT INTO x VALUES (1, NULL)"); err != nil {
 		t.Fatal(err)
 	}
 	_, err := raizel.QueryOne[unsupportedNullable](ctx, db, "SELECT id, count FROM x")
@@ -155,16 +154,16 @@ type member struct {
 func TestQuery_NestedStruct(t *testing.T) {
 	db := openDB(t)
 	ctx := context.Background()
-	if _, err := db.Exec(`
+	if _, err := db.SQL().Exec(`
 		CREATE TABLE teams (id INTEGER PRIMARY KEY, name TEXT);
 		CREATE TABLE members (id INTEGER PRIMARY KEY, name TEXT, team_id INTEGER);
 	`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("INSERT INTO teams VALUES (1, 'Alpha')"); err != nil {
+	if _, err := db.SQL().Exec("INSERT INTO teams VALUES (1, 'Alpha')"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("INSERT INTO members VALUES (10, 'Alice', 1)"); err != nil {
+	if _, err := db.SQL().Exec("INSERT INTO members VALUES (10, 'Alice', 1)"); err != nil {
 		t.Fatal(err)
 	}
 	m, err := raizel.QueryOne[member](ctx, db,
@@ -197,10 +196,10 @@ type innerHasOpt struct {
 func TestQuery_NestedNullableLeafPreserved(t *testing.T) {
 	db := openDB(t)
 	ctx := context.Background()
-	if _, err := db.Exec("CREATE TABLE outer_t (id INTEGER, tag TEXT, stopped_at DATETIME)"); err != nil {
+	if _, err := db.SQL().Exec("CREATE TABLE outer_t (id INTEGER, tag TEXT, stopped_at DATETIME)"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("INSERT INTO outer_t VALUES (1, 'live', NULL)"); err != nil {
+	if _, err := db.SQL().Exec("INSERT INTO outer_t VALUES (1, 'live', NULL)"); err != nil {
 		t.Fatal(err)
 	}
 	o, err := raizel.QueryOne[outerWithNullableInner](ctx, db,
@@ -216,7 +215,7 @@ func TestQuery_NestedNullableLeafPreserved(t *testing.T) {
 	}
 
 	stop := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	if _, err := db.Exec("INSERT INTO outer_t VALUES (2, 'done', ?)", stop); err != nil {
+	if _, err := db.SQL().Exec("INSERT INTO outer_t VALUES (2, 'done', ?)", stop); err != nil {
 		t.Fatal(err)
 	}
 	o2, err := raizel.QueryOne[outerWithNullableInner](ctx, db,

@@ -14,19 +14,19 @@ import (
 
 // --- helpers ---
 
-func openDB(t *testing.T) *sql.DB {
+func openDB(t *testing.T) *raizel.DB {
 	t.Helper()
-	db, err := sql.Open("sqlite", ":memory:")
+	sqlDB, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	t.Cleanup(func() { _ = db.Close() })
-	return db
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	return raizel.Wrap(sqlDB, raizel.DialectSQLite)
 }
 
-func seedUsers(t *testing.T, db *sql.DB) {
+func seedUsers(t *testing.T, db *raizel.DB) {
 	t.Helper()
-	_, err := db.Exec(`CREATE TABLE users (
+	_, err := db.SQL().Exec(`CREATE TABLE users (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		name TEXT NOT NULL,
 		email TEXT NOT NULL,
@@ -51,10 +51,10 @@ func TestQuery_Struct(t *testing.T) {
 	seedUsers(t, db)
 	ctx := context.Background()
 
-	if _, err := db.Exec("INSERT INTO users(name,email,score) VALUES (?,?,?)", "Alice", "a@b.com", 10); err != nil {
+	if _, err := db.SQL().Exec("INSERT INTO users(name,email,score) VALUES (?,?,?)", "Alice", "a@b.com", 10); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec("INSERT INTO users(name,email,score) VALUES (?,?,?)", "Bob", "b@b.com", 20); err != nil {
+	if _, err := db.SQL().Exec("INSERT INTO users(name,email,score) VALUES (?,?,?)", "Bob", "b@b.com", 20); err != nil {
 		t.Fatal(err)
 	}
 
@@ -75,7 +75,7 @@ func TestQuery_ScalarString(t *testing.T) {
 	seedUsers(t, db)
 	ctx := context.Background()
 
-	if _, err := db.Exec("INSERT INTO users(name,email) VALUES ('A','a@b.com'),('B','b@b.com')"); err != nil {
+	if _, err := db.SQL().Exec("INSERT INTO users(name,email) VALUES ('A','a@b.com'),('B','b@b.com')"); err != nil {
 		t.Fatal(err)
 	}
 	names, err := raizel.Query[string](ctx, db, "SELECT name FROM users ORDER BY name")
@@ -92,7 +92,7 @@ func TestQuery_ScalarInt(t *testing.T) {
 	seedUsers(t, db)
 	ctx := context.Background()
 
-	if _, err := db.Exec("INSERT INTO users(name,email,score) VALUES ('A','a',10),('B','b',20)"); err != nil {
+	if _, err := db.SQL().Exec("INSERT INTO users(name,email,score) VALUES ('A','a',10),('B','b',20)"); err != nil {
 		t.Fatal(err)
 	}
 	scores, err := raizel.Query[int64](ctx, db, "SELECT score FROM users ORDER BY score")
@@ -128,7 +128,7 @@ func TestQueryOne_Struct(t *testing.T) {
 	seedUsers(t, db)
 	ctx := context.Background()
 
-	if _, err := db.Exec("INSERT INTO users(name,email,score) VALUES ('Alice','a@b.com',99)"); err != nil {
+	if _, err := db.SQL().Exec("INSERT INTO users(name,email,score) VALUES ('Alice','a@b.com',99)"); err != nil {
 		t.Fatal(err)
 	}
 	u, err := raizel.QueryOne[user](ctx, db,
@@ -158,7 +158,7 @@ func TestQueryOne_Scalar(t *testing.T) {
 	seedUsers(t, db)
 	ctx := context.Background()
 
-	if _, err := db.Exec("INSERT INTO users(name,email) VALUES ('A','a'),('B','b')"); err != nil {
+	if _, err := db.SQL().Exec("INSERT INTO users(name,email) VALUES ('A','a'),('B','b')"); err != nil {
 		t.Fatal(err)
 	}
 	count, err := raizel.QueryOne[int64](ctx, db, "SELECT COUNT(*) FROM users")
@@ -195,7 +195,7 @@ func TestQuerier_Tx(t *testing.T) {
 	seedUsers(t, db)
 	ctx := context.Background()
 
-	tx, err := db.BeginTx(ctx, nil)
+	tx, err := db.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +236,7 @@ func TestStruct_TagOptions(t *testing.T) {
 	seedUsers(t, db)
 	ctx := context.Background()
 
-	if _, err := db.Exec("INSERT INTO users(name,email,score) VALUES ('Tagged','t@e.com',1)"); err != nil {
+	if _, err := db.SQL().Exec("INSERT INTO users(name,email,score) VALUES ('Tagged','t@e.com',1)"); err != nil {
 		t.Fatal(err)
 	}
 	u, err := raizel.QueryOne[taggedUser](ctx, db, "SELECT id, name, email FROM users")
@@ -256,7 +256,7 @@ func TestStruct_CaseInsensitiveColumns(t *testing.T) {
 	seedUsers(t, db)
 	ctx := context.Background()
 
-	if _, err := db.Exec("INSERT INTO users(name,email) VALUES ('A','a@b.com')"); err != nil {
+	if _, err := db.SQL().Exec("INSERT INTO users(name,email) VALUES ('A','a@b.com')"); err != nil {
 		t.Fatal(err)
 	}
 	// Force uppercase aliases so the column-name lookup must lowercase.
@@ -275,7 +275,7 @@ func TestStruct_PartialColumns(t *testing.T) {
 	seedUsers(t, db)
 	ctx := context.Background()
 
-	if _, err := db.Exec("INSERT INTO users(name,email,score) VALUES ('A','a@b.com',42)"); err != nil {
+	if _, err := db.SQL().Exec("INSERT INTO users(name,email,score) VALUES ('A','a@b.com',42)"); err != nil {
 		t.Fatal(err)
 	}
 	// Only id + name selected — other fields should remain zero-valued.
@@ -296,7 +296,7 @@ func TestStruct_UnmappedColumnsDiscarded(t *testing.T) {
 	seedUsers(t, db)
 	ctx := context.Background()
 
-	if _, err := db.Exec("INSERT INTO users(name,email,score) VALUES ('A','a@b.com',1)"); err != nil {
+	if _, err := db.SQL().Exec("INSERT INTO users(name,email,score) VALUES ('A','a@b.com',1)"); err != nil {
 		t.Fatal(err)
 	}
 	// Add an extra column that has no struct field — must not error.
