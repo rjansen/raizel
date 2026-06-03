@@ -23,9 +23,31 @@ import (
 	"errors"
 	"fmt"
 
+	go_ora "github.com/sijms/go-ora/v2"
+
 	"github.com/rjansen/raizel/internal/named"
 	"github.com/rjansen/raizel/internal/scanner"
 )
+
+// oracleVarchar2BindLimit is the largest byte length go-ora binds as a
+// VARCHAR2. A longer string overflows the bind with ORA-01461 even when the
+// target column is a CLOB (the type is fixed client-side, before the server
+// sees the statement), so such values must be sent as a LOB instead.
+const oracleVarchar2BindLimit = 32767
+
+// promoteOracleClobs rewrites oversized string arguments into go_ora.Clob so
+// the driver binds them as CLOBs rather than VARCHAR2. Only strings beyond the
+// VARCHAR2 bind ceiling are touched — shorter values bind as VARCHAR2 exactly
+// as before, and any column that legitimately receives a longer value must be
+// a CLOB/LONG, so the promotion is always type-correct. Oracle-only: other
+// dialects have no such limit. It mutates args in place.
+func promoteOracleClobs(args []any) {
+	for i, a := range args {
+		if s, ok := a.(string); ok && len(s) > oracleVarchar2BindLimit {
+			args[i] = go_ora.Clob{String: s, Valid: true}
+		}
+	}
+}
 
 // Query runs the SQL and scans every row into a value of type T. T may be
 // a tagged struct or a scalar (single-column) value. The returned slice is
@@ -92,6 +114,9 @@ func QueryOne[T any](ctx context.Context, h Handle, query string, args ...any) (
 // without native arrays, encode them yourself (or prefer ExecNamed, which
 // handles slice encoding from struct tags).
 func Exec(ctx context.Context, h Handle, query string, args ...any) (sql.Result, error) {
+	if h.Dialect() == DialectOracle {
+		promoteOracleClobs(args)
+	}
 	res, err := h.ExecContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("raizel.Exec: %w", err)
@@ -144,6 +169,9 @@ func execNamedAll[T any](ctx context.Context, h Handle, query string, models []T
 		rewritten, params, err := named.Rewrite(query, dialect.Placeholder, jsonArrays, m)
 		if err != nil {
 			return nil, fmt.Errorf("raizel.ExecNamed: %w", err)
+		}
+		if dialect == DialectOracle {
+			promoteOracleClobs(params)
 		}
 		res, err := h.ExecContext(ctx, rewritten, params...)
 		if err != nil {
