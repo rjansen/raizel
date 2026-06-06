@@ -22,12 +22,15 @@ var timeType = reflect.TypeFor[time.Time]()
 // fieldIndex locates one column-bound struct field. `path` walks possibly
 // nested struct types — empty path marks an unmapped column. `nullable`
 // is true when the leaf field is a pointer; `baseType` is then the
-// element type used to pick a null.Holder. `slice` is true when the leaf
+// element type used to pick a null.Holder. `nullZero` is true when a
+// non-pointer scalar leaf opts into NULL→zero coercion via the `,nullzero`
+// tag option; `baseType` is the scalar type. `slice` is true when the leaf
 // is an array-bound slice (e.g. []string); `sliceType` is the slice type
 // used for JSON decoding on non-native-array dialects.
 type fieldIndex struct {
 	path      []int
 	nullable  bool
+	nullZero  bool
 	baseType  reflect.Type
 	slice     bool
 	sliceType reflect.Type
@@ -70,9 +73,11 @@ func buildFieldMap(t reflect.Type, basePath []int, prefix string) map[string]fie
 		if tag == "" || tag == "-" {
 			continue
 		}
+		var opts string
 		if c := strings.IndexByte(tag, ','); c >= 0 {
-			tag = tag[:c]
+			tag, opts = tag[:c], tag[c+1:]
 		}
+		nullZero := hasOption(opts, "nullzero")
 
 		path := make([]int, 0, len(basePath)+1)
 		path = append(path, basePath...)
@@ -112,12 +117,32 @@ func buildFieldMap(t reflect.Type, basePath []int, prefix string) map[string]fie
 		}
 
 		out[strings.ToLower(col)] = fieldIndex{
-			path:     path,
+			path: path,
+			// A pointer field is already nullable; `,nullzero` is only
+			// meaningful for non-pointer scalars, so it is ignored there.
 			nullable: nullable,
+			nullZero: nullZero && !nullable,
 			baseType: ft,
 		}
 	}
 	return out
+}
+
+// hasOption reports whether a comma-separated `db` tag option list contains
+// the named option (e.g. "nullzero" in `db:"body,nullzero"`).
+func hasOption(opts, name string) bool {
+	for opts != "" {
+		var part string
+		if c := strings.IndexByte(opts, ','); c >= 0 {
+			part, opts = opts[:c], opts[c+1:]
+		} else {
+			part, opts = opts, ""
+		}
+		if part == name {
+			return true
+		}
+	}
+	return false
 }
 
 // fieldByPath walks an index path through possibly-nested struct values,
@@ -169,6 +194,11 @@ func New[T any](rows *sql.Rows, jsonArrays bool) (*RowScanner[T], error) {
 					return nil, err
 				}
 			}
+			if fi.nullZero {
+				if _, err := null.ZeroHolderFor(fi.baseType); err != nil {
+					return nil, err
+				}
+			}
 		}
 		// else: zero-value fieldIndex with nil path → marked unmapped
 	}
@@ -204,6 +234,12 @@ func (s *RowScanner[T]) Scan(rows *sql.Rows) (T, error) {
 			args[i] = ns
 		case fi.nullable:
 			h, _ := null.HolderFor(fi.baseType) // validated at scanner construction
+			holders[i] = h
+			args[i] = h.ScanDest()
+		case fi.nullZero:
+			// Non-pointer scalar tagged `,nullzero`: read through a Null
+			// shuttle and assign the zero value when the column is NULL.
+			h, _ := null.ZeroHolderFor(fi.baseType) // validated at scanner construction
 			holders[i] = h
 			args[i] = h.ScanDest()
 		default:

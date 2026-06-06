@@ -113,6 +113,94 @@ func TestQuery_NullableMixed(t *testing.T) {
 	}
 }
 
+// --- nullzero: NULL coerced to zero value on non-pointer fields ---
+
+type nullzeroRow struct {
+	ID      int64     `db:"id"`
+	Body    string    `db:"body,nullzero"`
+	Score   int64     `db:"score,nullzero"`
+	Bonus   float64   `db:"bonus,nullzero"`
+	Active  bool      `db:"active,nullzero"`
+	SeenAt  time.Time `db:"seen_at,nullzero"`
+	Subject string    `db:"subject"` // untagged: NULL must fail loudly
+}
+
+func seedNullzero(t *testing.T, db *raizel.DB) {
+	t.Helper()
+	if _, err := db.SQL().Exec(`CREATE TABLE nz (
+		id INTEGER PRIMARY KEY,
+		body TEXT,
+		score INTEGER,
+		bonus REAL,
+		active INTEGER,
+		seen_at DATETIME,
+		subject TEXT
+	)`); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+}
+
+func TestNullzero_NullColumnsCoerceToZero(t *testing.T) {
+	db := openDB(t)
+	seedNullzero(t, db)
+	ctx := context.Background()
+
+	// Every nullzero column NULL; the untagged subject is non-NULL.
+	if _, err := db.SQL().Exec(
+		"INSERT INTO nz(id, body, score, bonus, active, seen_at, subject) VALUES (1, NULL, NULL, NULL, NULL, NULL, 'hi')"); err != nil {
+		t.Fatal(err)
+	}
+	r, err := raizel.QueryOne[nullzeroRow](ctx, db,
+		"SELECT id, body, score, bonus, active, seen_at, subject FROM nz")
+	if err != nil {
+		t.Fatalf("QueryOne: %v", err)
+	}
+	if r.Body != "" || r.Score != 0 || r.Bonus != 0 || r.Active != false || !r.SeenAt.IsZero() {
+		t.Errorf("expected zero values for NULL columns, got %+v", r)
+	}
+	if r.Subject != "hi" {
+		t.Errorf("subject: got %q", r.Subject)
+	}
+}
+
+func TestNullzero_PresentValuesPreserved(t *testing.T) {
+	db := openDB(t)
+	seedNullzero(t, db)
+	ctx := context.Background()
+
+	seen := time.Date(2026, 6, 6, 12, 0, 0, 0, time.UTC)
+	if _, err := db.SQL().Exec(
+		"INSERT INTO nz(id, body, score, bonus, active, seen_at, subject) VALUES (1, 'hello', 9, 2.5, 1, ?, 'sub')",
+		seen); err != nil {
+		t.Fatal(err)
+	}
+	r, err := raizel.QueryOne[nullzeroRow](ctx, db,
+		"SELECT id, body, score, bonus, active, seen_at, subject FROM nz")
+	if err != nil {
+		t.Fatalf("QueryOne: %v", err)
+	}
+	if r.Body != "hello" || r.Score != 9 || r.Bonus != 2.5 || !r.Active || !r.SeenAt.Equal(seen) {
+		t.Errorf("present values not preserved: %+v", r)
+	}
+}
+
+func TestNullzero_UntaggedNullStillFailsLoudly(t *testing.T) {
+	db := openDB(t)
+	seedNullzero(t, db)
+	ctx := context.Background()
+
+	// subject is untagged and NULL → scanning into a plain string must error.
+	if _, err := db.SQL().Exec(
+		"INSERT INTO nz(id, body, subject) VALUES (1, 'b', NULL)"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := raizel.QueryOne[nullzeroRow](ctx, db,
+		"SELECT id, body, score, bonus, active, seen_at, subject FROM nz")
+	if err == nil {
+		t.Fatal("expected error scanning NULL into untagged string field")
+	}
+}
+
 // --- Nullable holder errors ---
 
 type unsupportedNullable struct {
